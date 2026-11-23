@@ -1,13 +1,14 @@
 import "server-only";
 
 import { getDb } from "@/infrastructure/database/client";
+import type { AnyDatabase } from "@/infrastructure/database/types";
 import type { AdminActor } from "@/modules/identity/contracts";
 import { actorCan } from "@/modules/identity/server";
 import { getImagesByIds } from "@/modules/media/server";
 
 import { publishProduct as publishProductUseCase } from "./application/product-editing";
 import type { CatalogDeps } from "./application/ports";
-import type { AdminProduct, ColorCard, ProductStatus, PublicationIssue } from "./contracts";
+import type { AdminProduct, ColorCard, ProductStatus, PublicationIssue, QuotableVariant } from "./contracts";
 import { publicationIssues } from "./domain/rules";
 import * as queries from "./infrastructure/catalog-queries";
 import { createCatalogStore } from "./infrastructure/catalog-store";
@@ -78,4 +79,13 @@ export function publishProduct(actor: AdminActor, input: { productId: string; ex
 /** Tarjetas públicas por color (sin disponibilidad: la añade la composición desde inventory). */
 export function listPublishedColorCards(filter: { categorySlug?: string; limit: number }): Promise<ColorCard[]> {
   return queries.listPublishedColorCards(getDb(), filter);
+}
+
+/** Para ventas: datos y precio vigente de variantes (cotización en servidor). */
+export function getQuotableVariants(variantIds: readonly string[], db: AnyDatabase = getDb()): Promise<QuotableVariant[]> {
+  return queries.getQuotableVariants(db, variantIds);
+}
+
+export function searchQuotableVariants(term: string, limit = 20): Promise<QuotableVariant[]> {
+  return queries.searchQuotableVariants(getDb(), term, limit);
 }

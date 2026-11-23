@@ -55,3 +55,33 @@ export const stockMovements = appSchema.table(
     check("stock_movements_note_check", sql`${t.note} is null or char_length(${t.note}) <= 300`),
   ],
 );
+
+/**
+ * Unidades apartadas por un pedido confirmado. `order_id` es un id opaco de ventas
+ * (sin FK: inventory no depende de sales). Sin vencimiento automático en V1.
+ */
+export const stockReservations = appSchema.table(
+  "stock_reservations",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    orderId: uuid().notNull(),
+    variantId: uuid()
+      .notNull()
+      .references(() => inventoryBalances.variantId, { onDelete: "restrict" }),
+    quantity: integer().notNull(),
+    status: text().notNull().default("active"),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    consumedAt: timestamp({ withTimezone: true }),
+    releasedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("stock_reservations_order_variant_key").on(t.orderId, t.variantId),
+    index("stock_reservations_variant_active_idx").on(t.variantId).where(sql`${t.status} = 'active'`),
+    check("stock_reservations_quantity_check", sql`${t.quantity} > 0`),
+    check("stock_reservations_status_check", sql`${t.status} in ('active', 'consumed', 'released')`),
+    check(
+      "stock_reservations_dates_check",
+      sql`(${t.status} = 'consumed') = (${t.consumedAt} is not null) and (${t.status} = 'released') = (${t.releasedAt} is not null)`,
+    ),
+  ],
+);

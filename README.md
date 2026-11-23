@@ -12,7 +12,8 @@ La arquitectura y el alcance están en el [índice de documentación](docs/READM
 | 02 Gestión de acceso | Hecha en local: login, MFA TOTP obligatoria, recuperación, invitaciones, owner/operator, revocación, último owner, auditoría. Ver [operación de acceso](docs/acceso-administrativo.md) |
 | 03 Productos y stock | Hecha en local: producto → colores → tallas (SKU/precio), fotos validadas en Storage, stock físico/reservado/disponible con ajustes auditados, publicación con requisitos. Categorías y guía de tallas por seed |
 | 04 Clientes | Hecha en local: directorio con búsqueda (nombre, teléfono, correo), alta idempotente, edición con versión, teléfono compartido con confirmación, archivado por owner con motivo. Historial de pedidos con la fase 5 |
-| 05–07 | Pendientes |
+| 05 Pedidos y cobros | Hecha en local: pedido manual WhatsApp/presencial cotizado en servidor, revisiones y acuerdo, confirmación con ficha y reserva atómica, abonos por modalidad (anticipado/adelanto/contraentrega, cobro de tercero por conciliar), preparación, despacho/recojo, entrega, cancelación, devoluciones de dinero y de prendas |
+| 06–07 | Pendientes |
 
 ## Requisitos
 
@@ -66,8 +67,8 @@ src/app/             rutas: (storefront), (auth)/admin/*, (backoffice)/admin/*
 src/proxy.ts         refresco de sesión y 307 en /admin (optimista)
 src/modules/         módulos de negocio; entre módulos solo contracts.ts o server.ts
   identity/          domain · application · infrastructure · presentation
-  catalog/ media/ inventory/ customers/   misma estructura por capas
-src/composition/     cruza módulos por ids (editor de producto, publicación, ficha de cliente)
+  catalog/ media/ inventory/ customers/ sales/   misma estructura por capas
+src/composition/     cruza módulos por ids (editor de producto, publicación, ficha de cliente, pedido)
 src/infrastructure/  configuración validada, base de datos y cliente Supabase
 src/shared/          dinero, fechas, formularios y UI de marca (sin negocio)
 supabase/            configuración local y plantillas de correo

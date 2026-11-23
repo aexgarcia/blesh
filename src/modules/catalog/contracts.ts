@@ -113,3 +113,14 @@ export type ColorCard = {
   variantIds: string[];
   categorySlug: string | null;
 };
+
+/** Variante para cotizar un pedido. `sellable`: producto publicado, color y talla activos. */
+export type QuotableVariant = {
+  variantId: string;
+  sku: string;
+  productTitle: string;
+  colorLabel: string;
+  sizeCode: SizeCode;
+  priceMinor: number;
+  sellable: boolean;
+};

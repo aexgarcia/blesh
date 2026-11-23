@@ -17,5 +17,15 @@ export {
   sizeGuideRows,
   sizeGuides,
 } from "../../../modules/catalog/infrastructure/schema";
-export { inventoryBalances, stockMovements } from "../../../modules/inventory/infrastructure/schema";
+export { inventoryBalances, stockMovements, stockReservations } from "../../../modules/inventory/infrastructure/schema";
 export { customers } from "../../../modules/customers/infrastructure/schema";
+export {
+  orderEvents,
+  orderItems,
+  orderRevisions,
+  orders,
+  paymentRecords,
+  refundObligations,
+  returnReceiptItems,
+  returnReceipts,
+} from "../../../modules/sales/infrastructure/schema";

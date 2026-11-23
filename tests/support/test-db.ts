@@ -14,7 +14,7 @@ export function openTestDb() {
 export async function resetTables(tables: string[]) {
   const sql = postgres(process.env.TEST_MIGRATION_DATABASE_URL!, { max: 1, onnotice: () => undefined });
   try {
-    await sql.unsafe(`truncate ${tables.map((t) => `app.${t}`).join(", ")}`);
+    await sql.unsafe(`truncate ${tables.map((t) => `app.${t}`).join(", ")} cascade`);
   } finally {
     await sql.end();
   }

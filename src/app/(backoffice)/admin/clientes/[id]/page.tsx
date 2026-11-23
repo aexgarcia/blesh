@@ -9,9 +9,12 @@ import { CUSTOMER_STATUS_LABELS, formatPhone } from "@/modules/customers/contrac
 import { CustomerForm } from "@/modules/customers/presentation/components/customer-form";
 import { CustomerStatusControls } from "@/modules/customers/presentation/components/customer-status-controls";
 import { actorCan, requireAdminActor } from "@/modules/identity/server";
+import { ORDER_STATUS_LABELS, REFUND_LABELS } from "@/modules/sales/contracts";
 import { formatLimaDate } from "@/shared/domain/dates";
+import { formatPEN } from "@/shared/domain/money";
 import { CardSkeleton, Skeleton } from "@/shared/ui/skeleton";
 import { Alert, Badge, Card, CardHeader, EmptyState } from "@/shared/ui/surface";
+import { TBody, THead, Table, Td, Th, Tr } from "@/shared/ui/table";
 
 export const metadata: Metadata = { title: "Cliente" };
 
@@ -86,7 +89,48 @@ async function Profile({ params, searchParams }: PageProps<"/admin/clientes/[id]
             <CardHeader title="Pedidos" description="Solicitudes, confirmados, cancelados y completados, con cobros y saldo de cada pedido." />
             {orders.length === 0 ? (
               <EmptyState icon={<ReceiptText />} title="Sin pedidos vinculados" description="Los pedidos aparecerán aquí cuando se confirmen con esta ficha." />
-            ) : null}
+            ) : (
+              <>
+                <Table>
+                  <THead>
+                    <Tr>
+                      <Th>Pedido</Th>
+                      <Th>Estado</Th>
+                      <Th className="text-right">Total</Th>
+                      <Th className="text-right">Cobrado</Th>
+                      <Th className="text-right">Saldo</Th>
+                    </Tr>
+                  </THead>
+                  <TBody>
+                    {orders.map((o) => {
+                      const active = o.status === "requested" || o.status === "confirmed";
+                      return (
+                        <Tr key={o.id}>
+                          <Td>
+                            <Link href={`/admin/pedidos/${o.id}`} className="font-bold underline-offset-4 hover:underline">
+                              {o.reference}
+                            </Link>
+                            <span className="block text-[12px] text-muted">{formatLimaDate(new Date(o.createdAt))}</span>
+                          </Td>
+                          <Td>
+                            <span className="flex flex-wrap gap-1">
+                              <Badge tone={o.status === "cancelled" ? "warning" : o.status === "completed" ? "success" : "neutral"}>{ORDER_STATUS_LABELS[o.status]}</Badge>
+                              {o.refundStatus !== "none" ? <Badge tone="danger">{REFUND_LABELS[o.refundStatus]}</Badge> : null}
+                            </span>
+                          </Td>
+                          <Td className="text-right tabular-nums">{formatPEN(o.totalMinor)}</Td>
+                          <Td className="text-right tabular-nums">{formatPEN(o.paidMinor - o.refundedMinor)}</Td>
+                          <Td className="text-right tabular-nums">{active ? formatPEN(Math.max(0, o.totalMinor - o.paidMinor)) : "—"}</Td>
+                        </Tr>
+                      );
+                    })}
+                  </TBody>
+                </Table>
+                <p className="border-t border-line px-6 py-4 text-[13px] text-muted">
+                  Compras completadas: <strong className="text-ink">{orders.filter((o) => o.status === "completed").length}</strong>. Cobrado = cobros verificados menos devoluciones. Las solicitudes no cuentan como compras.
+                </p>
+              </>
+            )}
           </Card>
         </div>
 

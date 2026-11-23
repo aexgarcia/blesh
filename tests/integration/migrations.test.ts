@@ -38,13 +38,22 @@ describe("migraciones", () => {
       "idempotency_records",
       "inventory_balances",
       "media_assets",
+      "order_events",
+      "order_items",
+      "order_revisions",
+      "orders",
+      "payment_records",
       "product_colors",
       "product_images",
       "product_variants",
       "products",
+      "refund_obligations",
+      "return_receipt_items",
+      "return_receipts",
       "size_guide_rows",
       "size_guides",
       "stock_movements",
+      "stock_reservations",
     ]);
   });
 

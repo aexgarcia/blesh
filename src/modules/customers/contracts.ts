@@ -45,3 +45,5 @@ export const CUSTOMERS_PAGE_SIZE = 20;
 
 /** Presentación legible del teléfono normalizado (+51 987 654 321). */
 export { formatPhone } from "./domain/customer";
+/** Normalización compartida con ventas (snapshot de contacto de solicitudes). */
+export { normalizeName, normalizePhone } from "./domain/customer";

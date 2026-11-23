@@ -159,3 +159,48 @@ export async function listPublishedColorCards(db: AnyDatabase, filter: { categor
     ];
   });
 }
+
+const quotableColumns = {
+  variantId: productVariants.id,
+  sku: productVariants.sku,
+  productTitle: products.title,
+  colorLabel: productColors.label,
+  sizeCode: productVariants.sizeCode,
+  priceMinor: productVariants.priceMinor,
+  sellable: sql<boolean>`(${products.status} = 'published' and ${productColors.active} and ${productVariants.active})`,
+};
+
+/** Precios y datos vigentes de variantes: la autoridad de precio para cotizar pedidos. */
+export async function getQuotableVariants(db: AnyDatabase, variantIds: readonly string[]) {
+  if (variantIds.length === 0) return [];
+  const rows = await db
+    .select(quotableColumns)
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .innerJoin(productColors, eq(productColors.id, productVariants.colorId))
+    .where(inArray(productVariants.id, [...variantIds]));
+  return rows.map((r) => ({ ...r, sizeCode: r.sizeCode as SizeCode }));
+}
+
+/** Búsqueda de variantes vendibles por título o SKU (alta de pedidos manuales). */
+export async function searchQuotableVariants(db: AnyDatabase, term: string, limit: number) {
+  const text = term.trim().slice(0, 80);
+  if (!text) return [];
+  const pattern = `%${text.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+  const rows = await db
+    .select(quotableColumns)
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .innerJoin(productColors, eq(productColors.id, productVariants.colorId))
+    .where(
+      and(
+        eq(products.status, "published"),
+        eq(productColors.active, true),
+        eq(productVariants.active, true),
+        or(ilike(products.title, pattern), ilike(productVariants.sku, pattern), ilike(productColors.label, pattern)),
+      ),
+    )
+    .orderBy(asc(products.title), asc(productColors.position), asc(productVariants.position))
+    .limit(limit);
+  return rows.map((r) => ({ ...r, sizeCode: r.sizeCode as SizeCode }));
+}

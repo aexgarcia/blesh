@@ -32,3 +32,8 @@ export type StockMovementView = {
 };
 
 export type InventoryErrorCode = "FORBIDDEN" | "VALIDATION_ERROR" | "BELOW_RESERVED" | "NEGATIVE_STOCK" | "NOT_REGISTERED" | "ALREADY_REGISTERED" | "IDEMPOTENCY_CONFLICT";
+
+export type ReservationLine = { variantId: string; quantity: number };
+/** Faltante al reservar: cuánto se pidió y cuánto había disponible (0 si la talla no tiene stock registrado). */
+export type StockShortage = { variantId: string; requested: number; available: number };
+export type ReserveResult = { ok: true } | { ok: false; shortages: StockShortage[] };

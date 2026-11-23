@@ -4,13 +4,17 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 
+import { inArray } from "drizzle-orm";
+
 import { getAuthEnv } from "@/infrastructure/config/server";
+import { getDb } from "@/infrastructure/database/client";
 
 import { listAdminUsers as listAdminUsersUseCase } from "./application/access-management";
 import type { AdminActor, Capability, MembershipStatus } from "./contracts";
 import { roleCan } from "./domain/permissions";
 import { decideAdminSession } from "./domain/session";
 import { getIdentityDeps } from "./infrastructure/compose";
+import { adminMemberships } from "./infrastructure/schema";
 import { createSupabaseSessionClient, readVerifiedClaims } from "./infrastructure/supabase-session";
 
 export const ADMIN_LOGIN_PATH = "/admin/login";
@@ -105,4 +109,14 @@ export async function listAdminUsers(actor: AdminActor) {
   const deps = getIdentityDeps();
   if (!deps) return { ok: false as const, code: "PROVIDER_ERROR" as const, message: "Autenticación no configurada." };
   return listAdminUsersUseCase(deps, actor);
+}
+
+/** Nombres visibles de miembros del equipo (historiales de otros módulos). Sin correos ni roles. */
+export async function getAdminDisplayNames(membershipIds: readonly string[]): Promise<Map<string, string>> {
+  if (membershipIds.length === 0) return new Map();
+  const rows = await getDb()
+    .select({ id: adminMemberships.id, displayName: adminMemberships.displayName })
+    .from(adminMemberships)
+    .where(inArray(adminMemberships.id, [...membershipIds]));
+  return new Map(rows.map((r) => [r.id, r.displayName]));
 }

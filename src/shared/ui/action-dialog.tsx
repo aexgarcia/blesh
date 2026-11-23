@@ -22,6 +22,10 @@ type ActionDialogProps = {
   tone?: "primary" | "danger";
   /** Pide un motivo (opcional u obligatorio según la acción del servidor). */
   reason?: { label: string; required?: boolean; hint?: string };
+  /** Envía `operationKey` (UUID nuevo en cada apertura): un reenvío no se aplica dos veces. */
+  operationKey?: boolean;
+  /** Diálogo ancho para formularios extensos. */
+  wide?: boolean;
   /** Botón que abre el diálogo (modo no controlado). */
   trigger?: React.ReactNode;
   /** Modo controlado (p. ej. abierto desde un menú). */
@@ -31,14 +35,14 @@ type ActionDialogProps = {
 };
 
 /** Confirmación accesible para acciones sensibles: evita ejecutarlas con un solo clic accidental. */
-export function ActionDialog({ trigger, open: controlledOpen, onOpenChange, title, description, ...formProps }: ActionDialogProps) {
+export function ActionDialog({ trigger, open: controlledOpen, onOpenChange, title, description, wide, ...formProps }: ActionDialogProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = controlledOpen ?? uncontrolledOpen;
   const setOpen = onOpenChange ?? setUncontrolledOpen;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent title={title} description={description}>
+      <DialogContent title={title} description={description} className={wide ? "max-w-2xl" : undefined}>
         {/* El contenido se monta en cada apertura: sin errores ni estado de la vez anterior. */}
         <ActionDialogForm {...formProps} onDone={() => setOpen(false)} />
       </DialogContent>
@@ -52,12 +56,15 @@ function ActionDialogForm({
   confirmLabel,
   tone = "primary",
   reason,
+  operationKey,
   children,
   onDone,
-}: Omit<ActionDialogProps, "title" | "description" | "trigger" | "open" | "onOpenChange"> & { onDone: () => void }) {
+}: Omit<ActionDialogProps, "title" | "description" | "trigger" | "open" | "onOpenChange" | "wide"> & { onDone: () => void }) {
   const { state, onSubmit, pending } = useActionForm(action, { onSuccess: onDone });
+  const [key] = useState(() => crypto.randomUUID());
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      {operationKey ? <input type="hidden" name="operationKey" value={key} /> : null}
       {Object.entries(fields).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}

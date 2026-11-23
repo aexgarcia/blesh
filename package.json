@@ -6,21 +6,58 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "node scripts/vitest.mjs run --project unit",
+    "test:watch": "node scripts/vitest.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:check": "tsx scripts/db-check.ts",
+    "db:seed": "tsx scripts/db-seed.ts",
+    "auth:up": "supabase start -x studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,postgres-meta",
+    "auth:down": "supabase stop",
+    "admin:bootstrap-owner": "tsx scripts/admin-bootstrap-owner.ts",
+    "admin:reset-mfa": "tsx scripts/admin-reset-mfa.ts",
+    "test:integration": "node scripts/vitest.mjs run --project integration",
+    "storage:setup": "tsx scripts/storage-setup.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.118.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "drizzle-orm": "0.45.4",
+    "lucide-react": "1.68.0",
     "next": "16.4.6",
+    "postgres": "3.4.9",
+    "radix-ui": "1.8.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1",
+    "sharp": "0.35.5",
+    "sonner": "2.0.8",
+    "tailwind-merge": "3.7.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.6.0",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "supabase": "3.0.0",
     "tailwindcss": "4.3.3",
-    "typescript": "^5"
+    "tsx": "4.23.15",
+    "typescript": "^5",
+    "vitest": "4.1.12"
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }

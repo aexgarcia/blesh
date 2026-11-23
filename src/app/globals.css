@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de marca: prototipo (prototipo/assets/styles.css) + kit de marca
+ * (tinta #0B0D12, blanco, morado opcional #713AED).
+ */
+:root {
+  --bg: #f8f5f6;
+  --surface: #ffffff;
+  --card: #ecebeb;
+  --ink: #0b0d12;
+  --muted: #6d6b6c;
+  --line: #e2dfe0;
+  --dark: #2f3030;
+  --darker: #1c1c1c;
+  --sale: #c8102e;
+  --violet: #713aed;
+  --success: #1f7a4d;
+  --warning: #9a6400;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-dark: var(--dark);
+  --color-darker: var(--darker);
+  --color-sale: var(--sale);
+  --color-violet: var(--violet);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius-card: 16px;
+  --container-site: 1440px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-[10px] font-bold uppercase tracking-[0.08em] text-muted;
+  }
+  .h-display {
+    @apply font-black uppercase leading-[0.95] tracking-[-0.035em];
+    font-size: clamp(30px, 4.4vw, 56px);
+  }
+  .h-section {
+    @apply font-black uppercase leading-none tracking-[-0.035em];
+    font-size: clamp(26px, 3.2vw, 40px);
+  }
+  .nav-pill {
+    @apply rounded-full px-3 py-2 text-[11px] font-extrabold uppercase tracking-[0.03em] transition-colors hover:bg-black/10;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

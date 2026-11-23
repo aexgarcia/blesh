@@ -1,0 +1,22 @@
+# PostgreSQL solo para desarrollo local. Credenciales ficticias, no reutilizar.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: blesh-db
+    environment:
+      POSTGRES_DB: blesh
+      POSTGRES_USER: blesh_admin
+      POSTGRES_PASSWORD: blesh_admin_local
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - blesh-db-data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/001-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blesh_admin -d blesh"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  blesh-db-data:

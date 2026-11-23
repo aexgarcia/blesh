@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795458931040,
+      "tag": "0000_infrastructure_base",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795458939054,
+      "tag": "0001_runtime_role_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795460088250,
+      "tag": "0002_admin_memberships",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795466110358,
+      "tag": "0003_catalog_media_inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795466116078,
+      "tag": "0004_catalog_seed_and_grants",
+      "breakpoints": true
+    }
+  ]
+}

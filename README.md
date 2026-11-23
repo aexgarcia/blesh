@@ -1,3 +1,9 @@
+# BLESH
+
+Tienda en Next.js para Perú (PEN), con solicitud de carrito y coordinación de pago/entrega por WhatsApp.
+
+La arquitectura y el alcance de implementación están en el [índice de documentación](docs/README.md), el [SDD](docs/SDD.md) y los [ADRs](docs/adr/README.md). Es un diseño propuesto; la aplicación aún conserva la base inicial de Next.js. El [prototipo](prototipo/) es la referencia visual.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

@@ -34,6 +34,7 @@ describe("migraciones", () => {
       "admin_memberships",
       "audit_events",
       "categories",
+      "customers",
       "idempotency_records",
       "inventory_balances",
       "media_assets",

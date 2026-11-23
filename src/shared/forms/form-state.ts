@@ -3,6 +3,10 @@ export type FormState = {
   status: "idle" | "success" | "error";
   message?: string;
   fieldErrors?: Record<string, string>;
+  /** Código de error de negocio cuando el formulario necesita reaccionar (p. ej. pedir una confirmación). */
+  code?: string;
+  /** Elementos relacionados que el formulario puede listar (p. ej. coincidencias a revisar). */
+  related?: { id: string; label: string; meta?: string }[];
 };
 
 export const idleState: FormState = { status: "idle" };

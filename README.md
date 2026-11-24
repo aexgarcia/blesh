@@ -2,41 +2,77 @@
 
 Tienda en Next.js para Perú (PEN), con solicitud de carrito y coordinación de pago/entrega por WhatsApp.
 
-La arquitectura y el alcance de implementación están en el [índice de documentación](docs/README.md), el [SDD](docs/SDD.md) y los [ADRs](docs/adr/README.md). Es un diseño propuesto; la aplicación aún conserva la base inicial de Next.js. El [prototipo](prototipo/) es la referencia visual.
+La arquitectura y el alcance están en el [índice de documentación](docs/README.md), el [SDD](docs/SDD.md) y los [ADRs](docs/adr/README.md). Las fases de desarrollo están en [docs/desarrollo-v1](docs/desarrollo-v1/README.md). El [prototipo](prototipo/) es la referencia visual.
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Estado
 
-## Getting Started
+| Fase | Estado |
+| --- | --- |
+| 01 Base técnica | Hecha: `src/` modular, PostgreSQL + Drizzle, migraciones, reglas de dependencias, pruebas |
+| 02 Gestión de acceso | Hecha en local: login, MFA TOTP obligatoria, recuperación, invitaciones, owner/operator, revocación, último owner, auditoría. Ver [operación de acceso](docs/acceso-administrativo.md) |
+| 03 Productos y stock | Hecha en local: producto → colores → tallas (SKU/precio), fotos validadas en Storage, stock físico/reservado/disponible con ajustes auditados, publicación con requisitos. Categorías y guía de tallas por seed |
+| 04 Clientes | Hecha en local: directorio con búsqueda (nombre, teléfono, correo), alta idempotente, edición con versión, teléfono compartido con confirmación, archivado por owner con motivo. Historial de pedidos con la fase 5 |
+| 05 Pedidos y cobros | Hecha en local: pedido manual WhatsApp/presencial cotizado en servidor, revisiones y acuerdo, confirmación con ficha y reserva atómica, abonos por modalidad (anticipado/adelanto/contraentrega, cobro de tercero por conciliar), preparación, despacho/recojo, entrega, cancelación, devoluciones de dinero y de prendas |
+| 06–07 | Pendientes |
 
-First, run the development server:
+## Requisitos
+
+- Node.js ≥ 20.19 y npm (`npm ci`).
+- Docker (Docker Desktop en Windows) para PostgreSQL y Supabase local.
+
+## Puesta en marcha local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+cp .env.example .env.local     # valores locales ficticios
+npm run db:up                  # PostgreSQL 17 en 127.0.0.1:54329
+npm run auth:up                # Supabase Auth local + buzón Mailpit (127.0.0.1:54324)
+npx supabase status -o env     # copiar claves locales a .env.local (SUPABASE_*)
+npm run db:migrate
+npm run storage:setup          # bucket de imágenes «catalog» (idempotente)
+npm run admin:bootstrap-owner -- --email tu@correo --name "Tu nombre"
+npm run dev                    # abrir el enlace del correo en Mailpit
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Comandos
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Comando | Qué hace |
+| --- | --- |
+| `npm run dev` / `build` / `start` | Next.js |
+| `npm run lint` | ESLint, incluidas las reglas de límites entre módulos |
+| `npm run typecheck` | Tipos de rutas + `tsc --noEmit` |
+| `npm test` | Unitarias, arquitectura y migraciones (PGlite); sin servicios externos |
+| `npm run test:integration` | PostgreSQL real (base `blesh_test`) y Supabase Auth local |
+| `npm run check` | lint + typecheck + test |
+| `npm run db:up` / `db:down` | PostgreSQL local (Docker) |
+| `npm run auth:up` / `auth:down` | Supabase local (Auth + Mailpit) |
+| `npm run db:generate` / `db:migrate` | Generar / aplicar migraciones |
+| `npm run db:check` | Conexión runtime y permisos mínimos |
+| `npm run db:seed` | Datos ficticios; solo base local |
+| `npm run admin:bootstrap-owner` | Alta controlada del primer propietario |
+| `npm run admin:reset-mfa` | Restablecimiento MFA de emergencia (auditado) |
+| `npm run storage:setup` | Crea/actualiza el bucket público de imágenes (WebP, 5 MB) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Base de datos
 
-## Learn More
+- Tablas en el esquema privado `app`; control de migraciones en `drizzle`.
+- `MIGRATION_DATABASE_URL` (propietario del esquema, solo migraciones) y `DATABASE_URL` (runtime, miembro de `blesh_runtime`). En cada entorno: `GRANT blesh_runtime TO <usuario_runtime>`.
+- Con el pooler de Supabase en modo transacción: `DATABASE_PREPARE=false`.
+- Instancias Drizzle solo con `createDrizzle()` (fija `casing: snake_case`).
 
-To learn more about Next.js, take a look at the following resources:
+## Estructura
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+src/app/             rutas: (storefront), (auth)/admin/*, (backoffice)/admin/*
+src/proxy.ts         refresco de sesión y 307 en /admin (optimista)
+src/modules/         módulos de negocio; entre módulos solo contracts.ts o server.ts
+  identity/          domain · application · infrastructure · presentation
+  catalog/ media/ inventory/ customers/ sales/   misma estructura por capas
+src/composition/     cruza módulos por ids (editor de producto, publicación, ficha de cliente, pedido)
+src/infrastructure/  configuración validada, base de datos y cliente Supabase
+src/shared/          dinero, fechas, formularios y UI de marca (sin negocio)
+supabase/            configuración local y plantillas de correo
+db/migrations/       SQL versionado
+scripts/             operación (migrar, seed, accesos) y lanzador de Vitest
+tests/               arquitectura e integración
+```

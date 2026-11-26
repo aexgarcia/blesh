@@ -17,7 +17,6 @@ async function main() {
     const result = await bootstrapFirstOwner(deps, { email, displayName: name });
     if (!result.ok) throw new Error(result.message);
     console.log("✓ Propietario invitado. Debe abrir el enlace del correo, crear su contraseña y activar MFA.");
-    if (process.env.MAILPIT_URL) console.log(`  Entorno local: el correo está en ${process.env.MAILPIT_URL}`);
   } finally {
     await close();
   }

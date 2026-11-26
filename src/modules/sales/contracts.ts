@@ -79,6 +79,10 @@ export type OrderRevision = {
   lines: OrderLine[];
   subtotalMinor: number;
   discountMinor: number;
+  /** Descuento automático por packs (`promotionCode` = política@versión). */
+  promotionDiscountMinor: number;
+  promotionCode: string | null;
+  promotionLabel?: string | null;
   shippingMinor: number;
   totalMinor: number;
   deliveryMode: DeliveryMode;
@@ -136,7 +140,7 @@ export type OrderSummary = {
 
 export type OrderDetail = OrderSummary & {
   version: number;
-  customerPhone: string;
+  customerPhone: string | null;
   customerId: string | null;
   deliveryPreference: DeliveryMode;
   currentRevision: number;
@@ -182,9 +186,97 @@ export type SalesErrorCode =
   | "OVERPAYMENT"
   | "CUSTOMER_REQUIRED"
   | "FORBIDDEN"
-  | "NOT_FOUND";
+  | "NOT_FOUND"
+  | "QUOTE_CHANGED"
+  | "TERMS_OUTDATED"
+  | "RATE_LIMITED"
+  | "ORDERING_DISABLED";
 
 export const ORDERS_PAGE_SIZE = 20;
 /** Límites por pedido (antiabuso y legibilidad del mensaje). */
 export const MAX_ORDER_LINES = 50;
 export const MAX_UNITS_PER_LINE = 10;
+
+// ---------------------------------------------------------------------------
+// Tienda pública: carrito, cotización y solicitud web (fase 6)
+
+/**
+ * Condiciones que la persona acepta al registrar una solicitud web. Versionadas: la versión
+ * aceptada queda en el evento `order.requested`. Resumen fiel de las reglas aprobadas
+ * (SDD 5.1, políticas en borrador); NO son las políticas finales del negocio.
+ * `status: "draft"` impide habilitar solicitudes en producción hasta su revisión.
+ */
+export const REQUEST_TERMS = {
+  version: "2026-11-23-borrador",
+  status: "draft" as "draft" | "final",
+  points: [
+    "Registrar esta solicitud o abrir WhatsApp no confirma la compra, el pago ni la reserva de las prendas.",
+    "BLESH te contactará por WhatsApp para confirmar disponibilidad, forma y costo de entrega (recojo o envío) y modalidad de pago. Si algo cambia, te pediremos una nueva aceptación.",
+    "Los precios están en soles (PEN). El envío se acuerda aparte: el total mostrado es provisional.",
+    "Las prendas se apartan solo cuando BLESH confirma el pedido.",
+    "Usamos tu nombre solo para coordinar esta solicitud. Al abrir WhatsApp, tú decides enviar el resumen por ese servicio.",
+  ],
+} as const;
+
+export type CartQuoteImage = { url: string; width: number; height: number; alt: string };
+
+/** Línea cotizada para la tienda (DTO público: sin stock exacto salvo el máximo pedible). */
+export type CartQuoteLine = {
+  variantId: string;
+  quantity: number;
+  status: "ok" | "unavailable" | "sold_out" | "insufficient";
+  /** Máximo que se puede pedir hoy cuando faltan unidades (orientativo). */
+  maxQuantity: number | null;
+  /** Precio anterior si cambió desde que la persona lo vio. */
+  previousPriceMinor: number | null;
+  /** Cuenta para un pack por cantidad. */
+  packEligible: boolean;
+  item: {
+    sku: string;
+    productTitle: string;
+    colorLabel: string;
+    sizeCode: string;
+    unitPriceMinor: number;
+    lineTotalMinor: number;
+    href: string | null;
+    image: CartQuoteImage | null;
+  } | null;
+};
+
+export type CartQuote = {
+  lines: CartQuoteLine[];
+  subtotalMinor: number;
+  /** Descuento por packs calculado en el servidor. */
+  promotionMinor: number;
+  promotionLabel: string | null;
+  /** Subtotal − packs; envío por acordar. */
+  totalMinor: number;
+  /** Progreso del pack (unidades elegibles y escala) para mostrarlo en el carrito. */
+  pack: { label: string; units: number; tierTotalsMinor: readonly [number, number, number] } | null;
+  units: number;
+  /** Lista para registrar: todo vendible, con unidades y precios aceptados. */
+  ready: boolean;
+};
+
+/** Resultado de registrar (o recuperar por reintento) una solicitud web. */
+export type WebRequestReceipt = {
+  reference: string;
+  message: string;
+  totalMinor: number;
+  /** Enlace con el texto completo, o null si supera el tamaño seguro (copiar y pegar). */
+  whatsappUrl: string | null;
+  whatsappChatUrl: string;
+  subtotalMinor: number;
+  units: number;
+};
+
+/** Estado de las solicitudes en este despliegue (configuración, no datos del negocio). */
+/** Política de packs vigente (para mostrar la escala; el cálculo autoritativo es del servidor). */
+export { PACK_POLICIES, packTotalMinor, packApplies, type PackPolicy } from "./domain/promotions";
+
+export type PackSettingsInput = { enabled: boolean; label: string; productSlugs: string[]; tierTotalsMinor: [number, number, number] };
+export type PackSettings = { enabled: boolean; policy: import("./domain/promotions").PackPolicy; version: number };
+
+export type OrderingStatus =
+  | { enabled: true; testMode: boolean }
+  | { enabled: false; testMode: boolean; reason: string };

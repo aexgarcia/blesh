@@ -6,6 +6,7 @@
 export { appSchema } from "./app-schema";
 export { auditEvents } from "./audit";
 export { idempotencyRecords } from "./idempotency";
+export { rateLimitCounters } from "./rate-limit";
 export { adminMemberships } from "../../../modules/identity/infrastructure/schema";
 export { mediaAssets } from "../../../modules/media/infrastructure/schema";
 export {
@@ -19,8 +20,10 @@ export {
 } from "../../../modules/catalog/infrastructure/schema";
 export { inventoryBalances, stockMovements, stockReservations } from "../../../modules/inventory/infrastructure/schema";
 export { customers } from "../../../modules/customers/infrastructure/schema";
+export { storefrontSections } from "../../../modules/content/infrastructure/schema";
 export {
   orderEvents,
+  packConfig,
   orderItems,
   orderRevisions,
   orders,

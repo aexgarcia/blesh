@@ -63,3 +63,8 @@ export function createMediaRepository(db: AnyDatabase): MediaRepository {
     },
   };
 }
+
+/** Solo resuelve URLs públicas del bucket (lectura de la tienda, sin credenciales). */
+export function publicUrlOnlyStorage(publicBaseUrl: string, bucket = "catalog"): Pick<ObjectStorage, "publicUrl"> {
+  return { publicUrl: (key) => `${publicBaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${bucket}/${key}` };
+}

@@ -42,11 +42,13 @@ describe("migraciones", () => {
       "order_items",
       "order_revisions",
       "orders",
+      "pack_config",
       "payment_records",
       "product_colors",
       "product_images",
       "product_variants",
       "products",
+      "rate_limit_counters",
       "refund_obligations",
       "return_receipt_items",
       "return_receipts",
@@ -54,6 +56,7 @@ describe("migraciones", () => {
       "size_guides",
       "stock_movements",
       "stock_reservations",
+      "storefront_sections",
     ]);
   });
 
@@ -94,6 +97,8 @@ describe("migraciones", () => {
         /permission denied/,
       );
       await expect(client.query("delete from app.audit_events")).rejects.toThrow(/permission denied/);
+      await expect(client.query("delete from app.size_guides")).rejects.toThrow(/permission denied/);
+      await expect(client.query("delete from app.categories")).rejects.toThrow(/permission denied/);
       await expect(client.query("create table app.intruder (id int)")).rejects.toThrow(/permission denied/);
     } finally {
       await client.exec("reset role");

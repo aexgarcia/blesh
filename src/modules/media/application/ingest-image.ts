@@ -71,7 +71,7 @@ export async function ingestImage(deps: MediaDeps, input: { bytes: Uint8Array; a
   }
 }
 
-export async function resolveImages(deps: Pick<MediaDeps, "repository" | "storage">, ids: readonly string[]): Promise<Map<string, MediaImage>> {
+export async function resolveImages(deps: { repository: MediaRepository; storage: Pick<ObjectStorage, "publicUrl"> }, ids: readonly string[]): Promise<Map<string, MediaImage>> {
   if (ids.length === 0) return new Map();
   const records = await deps.repository.findByIds([...new Set(ids)]);
   return new Map(records.map((r) => [r.id, { id: r.id, url: deps.storage.publicUrl(r.objectKey), width: r.width, height: r.height }]));

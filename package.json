@@ -17,12 +17,15 @@
     "db:migrate": "drizzle-kit migrate",
     "db:check": "tsx scripts/db-check.ts",
     "db:seed": "tsx scripts/db-seed.ts",
-    "auth:up": "supabase start -x studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,postgres-meta",
+    "auth:up": "supabase start -x mailpit,studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,postgres-meta",
     "auth:down": "supabase stop",
     "admin:bootstrap-owner": "tsx scripts/admin-bootstrap-owner.ts",
     "admin:reset-mfa": "tsx scripts/admin-reset-mfa.ts",
     "test:integration": "node scripts/vitest.mjs run --project integration",
-    "storage:setup": "tsx scripts/storage-setup.ts"
+    "storage:setup": "tsx scripts/storage-setup.ts",
+    "storage:orphans": "tsx scripts/storage-orphans.ts",
+    "prototype:import": "tsx scripts/import-prototype.ts",
+    "backup:verify-local": "tsx scripts/verify-local-restore.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

@@ -14,6 +14,7 @@ import {
   termsProblem,
   type RequestedLine,
 } from "../domain/order-rules";
+import { computePromotions, promotionCode, promotionLabel, PACK_POLICIES, type PromotionResult } from "../domain/promotions";
 import {
   SalesFailure,
   salesResult,
@@ -37,8 +38,8 @@ const trimOrNull = (value: string | null | undefined, max: number) => {
   return v ? v.slice(0, max) : null;
 };
 
-/** Cotiza en servidor: precios vigentes y solo variantes vendibles. */
-async function quoteLines(deps: SalesDeps, requested: readonly RequestedLine[]): Promise<OrderLine[]> {
+/** Cotiza en servidor: precios vigentes, solo variantes vendibles y packs por política. */
+async function quoteLines(deps: SalesDeps, requested: readonly RequestedLine[]): Promise<{ lines: OrderLine[]; promotion: PromotionResult }> {
   const normalized = normalizeRequestedLines(requested);
   if (!Array.isArray(normalized)) throw new SalesFailure("VALIDATION_ERROR", normalized.message, normalized.field);
   const quoted = new Map((await deps.quote(normalized.map((l) => l.variantId))).map((q) => [q.variantId, q]));
@@ -47,7 +48,7 @@ async function quoteLines(deps: SalesDeps, requested: readonly RequestedLine[]):
     const names = unavailable.map((l) => quoted.get(l.variantId)?.sku ?? "producto desconocido").join(", ");
     throw new SalesFailure("PRODUCT_UNAVAILABLE", `No disponible para la venta: ${names}.`, "lines");
   }
-  return normalized.map((l) => {
+  const lines = normalized.map((l) => {
     const q = quoted.get(l.variantId)!;
     return {
       variantId: q.variantId,
@@ -60,6 +61,9 @@ async function quoteLines(deps: SalesDeps, requested: readonly RequestedLine[]):
       lineTotalMinor: q.priceMinor * l.quantity,
     };
   });
+  const policies = deps.packPolicies ? await deps.packPolicies() : PACK_POLICIES;
+  const promotion = computePromotions(normalized.map((l) => ({ productSlug: quoted.get(l.variantId)!.productSlug, categorySlug: quoted.get(l.variantId)!.categorySlug, unitPriceMinor: quoted.get(l.variantId)!.priceMinor, quantity: l.quantity })), policies);
+  return { lines, promotion };
 }
 
 function outstandingRefunds(obligations: readonly ObligationRow[]): number {
@@ -110,44 +114,63 @@ function invalidTransition(message: string): never {
 // Solicitud (pedido manual ahora; solicitud web en la fase 6)
 
 export type CreateOrderInput = {
+  acceptedTotalMinor?: number;
   source: OrderSource;
   lines: RequestedLine[];
   customerName: string;
-  customerPhone: string;
+  /** Obligatorio en pedidos manuales; las solicitudes web no lo piden (se coordina por WhatsApp). */
+  customerPhone?: string | null;
   deliveryPreference: DeliveryMode;
   /** UUID por intención: un reintento devuelve el mismo pedido. */
   creationKey: string;
   note?: string | null;
+  /** Versión de condiciones aceptada (solicitud web); queda en el evento `order.requested`. */
+  termsVersion?: string | null;
 };
 
 /**
  * Registra una solicitud `requested` con revisión 1 cotizada en servidor. No reserva stock
- * ni registra cobros. `actor` null solo para solicitudes web (fase 6).
+ * ni registra cobros. `actor` null solo para solicitudes web.
+ *
+ * Idempotencia: la huella usa las líneas unidas y el contacto normalizado (no los precios),
+ * y el reintento se reconoce ANTES de cotizar: si el precio cambió o el producto se
+ * despublicó después de registrar, el reintento devuelve la misma solicitud.
  */
 export function createOrderRequest(deps: SalesDeps, actor: SalesActor | null, input: CreateOrderInput): Promise<SalesResult<{ id: string; reference: string }>> {
   return salesResult(async () => {
     if (input.source === "web" ? actor !== null : actor === null) throw new SalesFailure("FORBIDDEN", "Origen no permitido.");
     if (actor) authorize(deps, actor, "orders.manual_create", "No tienes permiso para crear pedidos.");
-    const contact = deps.normalizeContact({ name: input.customerName, phone: input.customerPhone });
+    const phone = input.customerPhone?.trim() ? input.customerPhone : null;
+    if (phone === null && input.source !== "web") throw new SalesFailure("VALIDATION_ERROR", "Indica el teléfono del cliente.", "customerPhone");
+    const contact = deps.normalizeContact({ name: input.customerName, phone });
     if (!contact.ok) throw new SalesFailure("VALIDATION_ERROR", contact.message, contact.field === "name" ? "customerName" : "customerPhone");
-    const lines = await quoteLines(deps, input.lines);
-    const totals = computeTotals(lines, 0, 0);
-    if (!totals.ok) throw new SalesFailure("VALIDATION_ERROR", totals.problem.message, totals.problem.field);
+    const normalized = normalizeRequestedLines(input.lines);
+    if (!Array.isArray(normalized)) throw new SalesFailure("VALIDATION_ERROR", normalized.message, normalized.field);
     const fingerprint = JSON.stringify({
       source: input.source,
-      lines: lines.map((l) => [l.variantId, l.quantity]).sort(),
+      lines: normalized.map((l) => [l.variantId, l.quantity]).sort(),
       name: contact.name,
       phone: contact.phone,
       deliveryPreference: input.deliveryPreference,
     });
+    const replay = (previous: OrderRow) => {
+      if (previous.creationFingerprint !== fingerprint) throw new SalesFailure("IDEMPOTENCY_CONFLICT", "Este formulario ya registró un pedido con otros datos. Recarga la página.");
+      return { id: previous.id, reference: previous.reference };
+    };
+
+    // Reintento rápido sin cotizar. Se cotiza fuera de la transacción para no retener dos
+    // conexiones a la vez (el pool es pequeño); la transacción vuelve a comprobar la clave.
+    const prior = await deps.store.transaction(({ sales }) => sales.findOrderByCreationKey(input.creationKey));
+    if (prior) return replay(prior);
+    const { lines, promotion } = await quoteLines(deps, normalized);
+    const totals = computeTotals(lines, 0, 0, promotion.discountMinor);
+    if (!totals.ok) throw new SalesFailure("VALIDATION_ERROR", totals.problem.message, totals.problem.field);
+    if (input.source === "web" && input.acceptedTotalMinor !== undefined && input.acceptedTotalMinor !== totals.totalMinor) throw new SalesFailure("QUOTE_CHANGED", "El pack o los precios cambiaron. Revisa el carrito de nuevo.");
 
     return deps.store.transaction(async ({ sales }) => {
       await sales.lockCreationKey(input.creationKey);
       const previous = await sales.findOrderByCreationKey(input.creationKey);
-      if (previous) {
-        if (previous.creationFingerprint !== fingerprint) throw new SalesFailure("IDEMPOTENCY_CONFLICT", "Este formulario ya registró un pedido con otros datos. Recarga la página.");
-        return { id: previous.id, reference: previous.reference };
-      }
+      if (previous) return replay(previous);
       let order: OrderRow | null = null;
       for (let attempt = 0; attempt < 8 && !order; attempt++) {
         order = await sales.insertOrder({
@@ -170,6 +193,9 @@ export function createOrderRequest(deps: SalesDeps, actor: SalesActor | null, in
           lines,
           subtotalMinor: totals.subtotalMinor,
           discountMinor: 0,
+          promotionDiscountMinor: promotion.discountMinor,
+          promotionCode: promotionCode(promotion),
+          promotionLabel: promotionLabel(promotion),
           shippingMinor: 0,
           totalMinor: totals.totalMinor,
           deliveryMode: input.deliveryPreference,
@@ -182,7 +208,13 @@ export function createOrderRequest(deps: SalesDeps, actor: SalesActor | null, in
         },
         actor?.membershipId ?? null,
       );
-      await sales.insertEvent({ orderId: order.id, event: "order.requested", actorId: actor?.membershipId ?? null, revision: 1, data: { source: input.source } });
+      await sales.insertEvent({
+        orderId: order.id,
+        event: "order.requested",
+        actorId: actor?.membershipId ?? null,
+        revision: 1,
+        data: input.termsVersion ? { source: input.source, termsVersion: input.termsVersion } : { source: input.source },
+      });
       return { id: order.id, reference: order.reference };
     });
   });
@@ -221,8 +253,8 @@ export function reviseAgreement(deps: SalesDeps, actor: SalesActor, input: Ref &
       authorize(deps, actor, "payment_terms.authorize", "Solo el propietario autoriza adelanto + saldo o contraentrega.");
     }
 
-    const lines = await quoteLines(deps, input.lines);
-    const totals = computeTotals(lines, input.discountMinor, input.shippingMinor);
+    const { lines, promotion } = await quoteLines(deps, input.lines);
+    const totals = computeTotals(lines, input.discountMinor, input.shippingMinor, promotion.discountMinor);
     if (!totals.ok) throw new SalesFailure("VALIDATION_ERROR", totals.problem.message, totals.problem.field);
     const deliveryAddress = input.deliveryMode === "shipping" ? trimOrNull(input.deliveryAddress, 300) : null;
     const problem = termsProblem({ ...input, deliveryAddress }, totals.totalMinor);
@@ -236,6 +268,9 @@ export function reviseAgreement(deps: SalesDeps, actor: SalesActor, input: Ref &
         lines,
         subtotalMinor: totals.subtotalMinor,
         discountMinor: input.discountMinor,
+        promotionDiscountMinor: promotion.discountMinor,
+        promotionCode: promotionCode(promotion),
+        promotionLabel: promotionLabel(promotion),
         shippingMinor: input.shippingMinor,
         totalMinor: totals.totalMinor,
         deliveryMode: input.deliveryMode,
@@ -546,6 +581,7 @@ export function cancelOrder(deps: SalesDeps, actor: SalesActor, input: Ref & { r
     const reason = input.reason.trim();
     if (reason.length < 3) throw new SalesFailure("VALIDATION_ERROR", "Indica el motivo de la cancelación.", "reason");
     if (order.status === "cancelled" || order.status === "completed") invalidTransition("El pedido ya está cerrado.");
+    if (order.reportedMinor > 0) invalidTransition("Hay cobros del transportista pendientes de conciliar: concílialos antes de cancelar.");
 
     const beforeDispatch = cancellableBeforeDispatch(order.status, order.fulfillmentStatus);
     if (!beforeDispatch) {
@@ -587,6 +623,7 @@ export function recordRefund(
 ) {
   return orderCommand(deps, actor, input, "refunds.manage", async ({ sales }, order) => {
     if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) throw new SalesFailure("VALIDATION_ERROR", "Indica un importe mayor que 0.", "amount");
+    if (input.refundedAt.getTime() > deps.clock.now().getTime() + 5 * 60_000) throw new SalesFailure("VALIDATION_ERROR", "La fecha de devolución no puede ser futura.", "receivedAt");
     const obligations = await sales.lockObligations(order.id);
     const obligation = obligations.find((o) => o.id === input.obligationId);
     if (!obligation) throw new SalesFailure("NOT_FOUND", "La devolución pendiente no existe.");
@@ -626,6 +663,7 @@ export function recordReturnReceipt(
   input: Ref & { reason: string; items: { variantId: string; received: number; restock: number }[]; refundMinor: number },
 ) {
   return orderCommand(deps, actor, input, "refunds.manage", async ({ sales, inventory }, order) => {
+    if (order.status === "completed") invalidTransition("El pedido está completado y cerrado: no admite devoluciones.");
     if (order.fulfillmentStatus !== "dispatched" && order.fulfillmentStatus !== "delivered") invalidTransition("Solo se reciben devoluciones de pedidos despachados o entregados.");
     const reason = input.reason.trim();
     if (reason.length < 3) throw new SalesFailure("VALIDATION_ERROR", "Indica el motivo de la devolución.", "reason");

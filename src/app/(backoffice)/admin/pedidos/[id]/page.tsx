@@ -112,7 +112,7 @@ async function OrderView({ params, searchParams }: PageProps<"/admin/pedidos/[id
     followUpAt: order.followUpAt,
     customerId: order.customerId,
     customerMatches,
-    contact: { name: order.customerName, phone: order.customerPhone },
+    contact: { name: order.customerName, phone: order.customerPhone ?? "" },
     reportedPayments: order.payments.filter((p) => p.kind === "payment" && p.status === "reported").map((p) => ({ id: p.id, amountMinor: p.amountMinor })),
     obligations: order.obligations
       .filter((o) => o.authorizedMinor > o.refundedMinor)
@@ -182,6 +182,9 @@ async function OrderView({ params, searchParams }: PageProps<"/admin/pedidos/[id
             </Table>
             <dl className="border-t border-line px-6 py-4">
               <Row label="Subtotal">{formatPEN(current.subtotalMinor)}</Row>
+              {current.promotionDiscountMinor > 0 ? (
+                <Row label={`${current.promotionLabel ?? "Pack automático"} (${current.promotionCode})`}>− {formatPEN(current.promotionDiscountMinor)}</Row>
+              ) : null}
               {current.discountMinor > 0 ? <Row label="Descuento excepcional">− {formatPEN(current.discountMinor)}</Row> : null}
               <Row label="Envío">{current.deliveryMode === "shipping" ? formatPEN(current.shippingMinor) : current.deliveryMode === "pickup" ? "Recojo" : "Por acordar"}</Row>
               <div className="mt-1 flex justify-between border-t border-line pt-3 text-[15px] font-extrabold">
@@ -279,7 +282,7 @@ async function OrderView({ params, searchParams }: PageProps<"/admin/pedidos/[id
             <CardHeader title="Cliente" description="Contacto guardado en la solicitud." />
             <dl className="px-6 py-4">
               <Row label="Nombre">{order.customerName}</Row>
-              <Row label="Teléfono">{formatPhone(order.customerPhone)}</Row>
+              <Row label="Teléfono">{order.customerPhone ? formatPhone(order.customerPhone) : "Por WhatsApp (pídelo al confirmar)"}</Row>
               <Row label="Ficha">
                 {linkedCustomer ? (
                   <Link href={`/admin/clientes/${linkedCustomer.id}`} className="underline underline-offset-4">

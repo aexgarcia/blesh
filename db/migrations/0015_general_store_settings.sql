@@ -1,0 +1,2 @@
+ALTER TABLE "app"."storefront_sections" DROP CONSTRAINT "storefront_sections_key_check";--> statement-breakpoint
+ALTER TABLE "app"."storefront_sections" ADD CONSTRAINT "storefront_sections_key_check" CHECK ("app"."storefront_sections"."key" in ('general', 'hero', 'collections', 'pack', 'reels'));

@@ -2,6 +2,7 @@ import type { AdminRole, Capability } from "../contracts";
 
 /** Capacidades exclusivas del propietario. El resto las comparten ambos roles. */
 const OWNER_ONLY: ReadonlySet<Capability> = new Set<Capability>([
+  "content.manage",
   "customers.archive",
   "orders.cancel_paid",
   "orders.exceptional_discount",

@@ -1,14 +1,17 @@
-import { KeyRound, LogOut, Package, ShoppingBag, Users } from "lucide-react";
+import { KeyRound, LogOut, Package, Ruler, ShoppingBag, Store, Tags, Users } from "lucide-react";
 
 import { ROLE_LABELS } from "@/modules/identity/contracts";
 import { signOutAction } from "@/modules/identity/presentation/auth-actions";
 import { actorCan, getAdminSessionState } from "@/modules/identity/server";
-import { SidebarLink, SidebarLinkStatic } from "@/shared/ui/nav-link";
+import { SidebarLink, SidebarLinkGroup, SidebarLinkStatic } from "@/shared/ui/nav-link";
+import { STOREFRONT_SETTINGS, storefrontSettingHref } from "@/modules/content/presentation/storefront-navigation";
 
-// Navegación V1 aprobada. Sin dashboard, importación, CMS ni configuración visual.
+// Operación V1; Tienda y Gestión de acceso se añaden solo para propietarios.
 const SECTIONS = [
   { href: "/admin/pedidos", label: "Pedidos", icon: <ShoppingBag aria-hidden /> },
   { href: "/admin/productos", label: "Productos", icon: <Package aria-hidden /> },
+  { href: "/admin/categorias", label: "Categorías", icon: <Tags aria-hidden /> },
+  { href: "/admin/guias-de-tallas", label: "Guías de tallas", icon: <Ruler aria-hidden /> },
   { href: "/admin/clientes", label: "Clientes", icon: <Users aria-hidden /> },
 ] as const;
 
@@ -24,6 +27,7 @@ export function AdminNavFallback() {
 export async function AdminNav() {
   const state = await getAdminSessionState();
   const canManageAccess = state.kind === "ok" && actorCan(state.actor, "access.manage");
+  const canManageStore = state.kind === "ok" && actorCan(state.actor, "content.manage");
   return (
     <>
       {SECTIONS.map((s) => (
@@ -31,6 +35,9 @@ export async function AdminNav() {
           {s.label}
         </SidebarLink>
       ))}
+      {canManageStore ? (
+        <SidebarLinkGroup href="/admin/tienda" label="Tienda" icon={<Store aria-hidden />} links={STOREFRONT_SETTINGS.map((section) => ({ href: storefrontSettingHref(section.slug), label: section.label }))} />
+      ) : null}
       {canManageAccess ? (
         <SidebarLink href="/admin/acceso" icon={<KeyRound aria-hidden />}>
           Gestión de acceso

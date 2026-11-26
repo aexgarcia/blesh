@@ -42,6 +42,24 @@ const moduleOf = (rel: string) => /^modules\/([^/]+)\//.exec(rel)?.[1];
 const isPublicEntry = (rel: string) => /^modules\/[^/]+\/(contracts|server)(\.tsx?)?$/.test(rel);
 
 describe("arquitectura", () => {
+  it("las pruebas unitarias viven fuera de src y reflejan sus carpetas", () => {
+    function testFiles(dir: string): string[] {
+      return readdirSync(dir).flatMap((name) => {
+        const full = path.join(dir, name);
+        return statSync(full).isDirectory() ? testFiles(full) : /\.(test|spec)\.tsx?$/.test(name) ? [full] : [];
+      });
+    }
+    expect(testFiles(SRC).map((file) => path.relative(SRC, file))).toEqual([]);
+    const unitRoot = path.join(ROOT, "tests/unit");
+    const tests = testFiles(unitRoot);
+    expect(tests.length).toBeGreaterThan(0);
+    const violations = tests.filter((file) => {
+      const relative = path.relative(unitRoot, file);
+      return !statSync(path.join(SRC, path.dirname(relative)), { throwIfNoEntry: false })?.isDirectory();
+    });
+    expect(violations.map((file) => path.relative(unitRoot, file))).toEqual([]);
+  });
+
   it("encuentra archivos fuente", () => {
     expect(files.length).toBeGreaterThan(0);
   });

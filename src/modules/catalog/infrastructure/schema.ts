@@ -16,7 +16,7 @@ import {
 import { appSchema } from "../../../infrastructure/database/schema/app-schema";
 import { mediaAssets } from "../../media/infrastructure/schema";
 
-/** Categorías iniciales por seed versionado; sin CRUD en V1. */
+/** Categorías administrables; el slug se conserva para mantener enlaces estables. */
 export const categories = appSchema.table(
   "categories",
   {
@@ -26,8 +26,13 @@ export const categories = appSchema.table(
     description: text(),
     position: integer().notNull().default(0),
     active: boolean().notNull().default(true),
+    version: integer().notNull().default(1),
+    creationKey: uuid(),
+    creationFingerprint: text(),
+    lastOperationKey: uuid(),
+    lastFingerprint: text(),
   },
-  (t) => [uniqueIndex("categories_slug_key").on(t.slug)],
+  (t) => [uniqueIndex("categories_slug_key").on(t.slug), uniqueIndex("categories_creation_key").on(t.creationKey), uniqueIndex("categories_operation_key").on(t.lastOperationKey)],
 );
 
 export const sizeGuides = appSchema.table(
@@ -37,8 +42,12 @@ export const sizeGuides = appSchema.table(
     code: text().notNull(),
     name: text().notNull(),
     version: integer().notNull().default(1),
+    lastOperationKey: uuid(),
+    lastFingerprint: text(),
+    creationKey: uuid(),
+    creationFingerprint: text(),
   },
-  (t) => [uniqueIndex("size_guides_code_key").on(t.code)],
+  (t) => [uniqueIndex("size_guides_code_key").on(t.code), uniqueIndex("size_guides_operation_key").on(t.lastOperationKey), uniqueIndex("size_guides_creation_key").on(t.creationKey)],
 );
 
 export const sizeGuideRows = appSchema.table(

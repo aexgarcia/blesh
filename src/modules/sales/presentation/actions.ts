@@ -1,12 +1,13 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refresh, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { searchQuotableVariants } from "@/modules/catalog/server";
+import { CATALOG_CACHE_TAG, searchQuotableVariants } from "@/modules/catalog/server";
 import { requireAdminActor } from "@/modules/identity/server";
 import { getBalances } from "@/modules/inventory/server";
+import { getImagesByIds } from "@/modules/media/server";
 import { errorState, fieldErrorsFrom, type FormState } from "@/shared/forms/form-state";
 import { parsePENInput } from "@/shared/domain/money";
 
@@ -54,8 +55,10 @@ const linesSchema = z
   })
   .pipe(z.array(z.object({ variantId: z.uuid(), quantity: z.number().int().min(1).max(10) })).max(50));
 
-function finish(result: SalesResult<unknown>, success: string): FormState {
+/** `stock`: el comando cambió el disponible (reserva, liberación o reingreso) → tienda pública. */
+function finish(result: SalesResult<unknown>, success: string, { stock = false } = {}): FormState {
   if (!result.ok) return { ...errorState(result.message, result.field ? { [result.field]: result.message } : undefined), code: result.code };
+  if (stock) updateTag(CATALOG_CACHE_TAG);
   refresh();
   return { status: "success", message: success };
 }
@@ -66,14 +69,18 @@ function invalid(error: z.ZodError): FormState {
 
 // ---------------------------------------------------------------------------
 
-export type VariantOption = { variantId: string; label: string; sku: string; priceMinor: number; available: number | null };
+export type VariantOption = { variantId: string; label: string; sku: string; priceMinor: number; available: number | null; imageUrl: string | null };
 
 /** Búsqueda de variantes vendibles para armar líneas (precio y disponible orientativos). */
 export async function searchVariantsAction(term: string): Promise<VariantOption[]> {
   await requireAdminActor();
   const variants = await searchQuotableVariants(String(term).slice(0, 80), 20);
-  const balances = await getBalances(variants.map((v) => v.variantId));
+  const [balances, images] = await Promise.all([
+    getBalances(variants.map((v) => v.variantId)),
+    getImagesByIds(variants.map((v) => v.imageMediaId).filter((id): id is string => id !== null)),
+  ]);
   return variants.map((v) => ({
+    imageUrl: v.imageMediaId ? (images.get(v.imageMediaId)?.url ?? null) : null,
     variantId: v.variantId,
     label: `${v.productTitle} · ${v.colorLabel} / ${v.sizeCode === "UNICA" ? "Única" : v.sizeCode}`,
     sku: v.sku,
@@ -152,7 +159,7 @@ export async function confirmOrderAction(_prev: FormState, formData: FormData): 
     d.customerMode === "existing"
       ? { kind: "existing", customerId: d.customerId! }
       : { kind: "new", name: d.name, phone: d.phone, email: d.email || null, confirmSharedPhone: d.confirmSharedPhone === "on" };
-  return finish(await commands.confirmOrder(getSalesDeps(), actor, { ...d, customer, followUpAt: d.followUpAt }), "Pedido confirmado y stock reservado.");
+  return finish(await commands.confirmOrder(getSalesDeps(), actor, { ...d, customer, followUpAt: d.followUpAt }), "Pedido confirmado y stock reservado.", { stock: true });
 }
 
 export async function setFollowUpAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -228,7 +235,7 @@ export async function cancelOrderAction(_prev: FormState, formData: FormData): P
   const actor = await requireAdminActor();
   const parsed = ref.extend({ reason: z.string().max(300) }).safeParse(fields(formData));
   if (!parsed.success) return invalid(parsed.error);
-  return finish(await commands.cancelOrder(getSalesDeps(), actor, parsed.data), "Pedido cancelado.");
+  return finish(await commands.cancelOrder(getSalesDeps(), actor, parsed.data), "Pedido cancelado.", { stock: true });
 }
 
 export async function recordRefundAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -254,7 +261,7 @@ export async function recordReturnAction(_prev: FormState, formData: FormData): 
     items.push({ variantId: match[1], received, restock });
   }
   const { refund, ...rest } = parsed.data;
-  return finish(await commands.recordReturnReceipt(getSalesDeps(), actor, { ...rest, items, refundMinor: refund }), "Devolución registrada.");
+  return finish(await commands.recordReturnReceipt(getSalesDeps(), actor, { ...rest, items, refundMinor: refund }), "Devolución registrada.", { stock: true });
 }
 
 export async function correctCustomerLinkAction(_prev: FormState, formData: FormData): Promise<FormState> {

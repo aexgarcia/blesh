@@ -1,15 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import { slugify } from "@/shared/domain/slug";
 import { Field, Input, Select, Textarea } from "@/shared/ui/form";
+import { Button } from "@/shared/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/shared/ui/dialog";
 import { FormMessage } from "@/shared/ui/form-message";
 import { SubmitButton } from "@/shared/ui/submit-button";
 import { useActionForm } from "@/shared/ui/use-action-form";
 
 import type { AdminProduct, CategoryOption, SizeGuideOption } from "../../contracts";
 import { createProductAction, updateProductInfoAction } from "../actions";
+import { SizeGuideForm } from "./size-guide-form";
 
 type Props = {
   categories: CategoryOption[];
@@ -21,8 +25,13 @@ type Props = {
 export function ProductInfoForm({ categories, sizeGuides, product }: Props) {
   const { state, onSubmit, pending } = useActionForm(product ? updateProductInfoAction : createProductAction);
   const [title, setTitle] = useState(product?.title ?? "");
-  const [slugTouched, setSlugTouched] = useState(Boolean(product));
-  const [slug, setSlug] = useState(product?.slug ?? "");
+  const [manualSlug, setManualSlug] = useState<string | null>(product?.slug ?? null);
+  const slug = manualSlug ?? slugify(title);
+  const [selectedGuide, setSelectedGuide] = useState(product?.sizeGuideId ?? "");
+  const [createdGuides, setCreatedGuides] = useState<SizeGuideOption[]>([]);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideKey, setGuideKey] = useState<string | null>(null);
+  const guides = [...sizeGuides, ...createdGuides.filter((guide) => !sizeGuides.some((g) => g.id === guide.id))];
   const [short, setShort] = useState(product?.shortDescription ?? "");
   const errors = state.fieldErrors ?? {};
 
@@ -44,17 +53,14 @@ export function ProductInfoForm({ categories, sizeGuides, product }: Props) {
               value={title}
               maxLength={160}
               required
-              onChange={(e) => {
-                setTitle(e.target.value);
-                if (!slugTouched) setSlug(slugify(e.target.value));
-              }}
+              onChange={(e) => setTitle(e.target.value)}
               {...c}
             />
           )}
         </Field>
         <Field
           label="URL del producto"
-          hint={product?.slugLocked ? "Fija: el producto ya se publicó." : `/productos/${slug || "…"}`}
+          hint={product?.slugLocked ? "Fija: el producto ya se publicó." : `/productos/${slug || "…"} · ${manualSlug === null ? "Sugerencia automática según el título." : "URL personalizada."}`}
           error={errors.slug}
           className="md:col-span-2"
         >
@@ -63,19 +69,23 @@ export function ProductInfoForm({ categories, sizeGuides, product }: Props) {
               name="slug"
               value={slug}
               readOnly={product?.slugLocked}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               maxLength={80}
               onChange={(e) => {
-                setSlugTouched(true);
-                setSlug(e.target.value.toLowerCase());
+                setManualSlug(e.target.value.trim() ? e.target.value.toLowerCase() : null);
               }}
               {...c}
             />
           )}
         </Field>
+        {!product?.slugLocked && manualSlug !== null ? <button type="button" onClick={() => setManualSlug(null)} className="-mt-3 justify-self-start text-xs font-bold underline md:col-span-2">Usar URL sugerida</button> : null}
         <Field label="Categoría" hint="Obligatoria para publicar." error={errors.categoryId}>
           {(c) => (
             <Select name="categoryId" defaultValue={product?.categoryId ?? ""} {...c}>
               <option value="">Sin categoría</option>
+              {product?.categoryId && !categories.some((c) => c.id === product.categoryId) ? <option value={product.categoryId} disabled>Categoría inactiva: selecciona otra</option> : null}
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -84,11 +94,11 @@ export function ProductInfoForm({ categories, sizeGuides, product }: Props) {
             </Select>
           )}
         </Field>
-        <Field label="Guía de tallas" error={errors.sizeGuideId}>
+        <div className="space-y-3"><Field label="Guía de tallas" error={errors.sizeGuideId}>
           {(c) => (
-            <Select name="sizeGuideId" defaultValue={product?.sizeGuideId ?? ""} {...c}>
+            <Select name="sizeGuideId" value={selectedGuide} onChange={(e) => setSelectedGuide(e.target.value)} {...c}>
               <option value="">Sin guía</option>
-              {sizeGuides.map((g) => (
+              {guides.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name} ({g.rows.map((r) => r.sizeCode).join(", ")})
                 </option>
@@ -96,6 +106,21 @@ export function ProductInfoForm({ categories, sizeGuides, product }: Props) {
             </Select>
           )}
         </Field>
+          <div className="flex flex-wrap items-center gap-3">
+            <Dialog open={guideOpen} onOpenChange={(open) => { setGuideOpen(open); setGuideKey(open ? crypto.randomUUID() : null); }}>
+              <DialogTrigger asChild><Button type="button" size="sm" variant="secondary">Crear guía</Button></DialogTrigger>
+              <DialogContent title="Nueva guía de tallas" description="Ingresa las medidas reales de la prenda, en centímetros." className="max-w-3xl">
+                {guideKey ? <SizeGuideForm key={guideKey} operationKey={guideKey} onCreated={(guide) => {
+                  setCreatedGuides((current) => [...current.filter((g) => g.id !== guide.id), guide]);
+                  setSelectedGuide(guide.id);
+                  setGuideOpen(false);
+                  setGuideKey(null);
+                }} /> : null}
+              </DialogContent>
+            </Dialog>
+            <Link href="/admin/guias-de-tallas" target="_blank" rel="noopener noreferrer" className="text-xs text-muted underline">Administrar guías ↗</Link>
+          </div>
+        </div>
         <Field label="Descripción corta" hint={`${short.length}/300 · Se muestra junto al título.`} error={errors.shortDescription} className="md:col-span-2">
           {(c) => <Textarea name="shortDescription" value={short} onChange={(e) => setShort(e.target.value)} maxLength={300} rows={2} {...c} />}
         </Field>

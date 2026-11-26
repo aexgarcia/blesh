@@ -19,8 +19,8 @@ export function getInventoryDeps(): InventoryDeps {
 }
 
 /** Balances por variante (lectura transaccional, sin caché compartida). */
-export async function getBalances(variantIds: readonly string[]): Promise<Map<string, StockBalance>> {
-  const rows = await createInventoryStore(getDb()).balances(variantIds);
+export async function getBalances(variantIds: readonly string[], db: AnyDatabase = getDb()): Promise<Map<string, StockBalance>> {
+  const rows = await createInventoryStore(db).balances(variantIds);
   return new Map(rows.map((b) => [b.variantId, b]));
 }
 

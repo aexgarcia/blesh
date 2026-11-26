@@ -5,6 +5,8 @@
 /.pnp
 /docs
 /prototipo
+.playwright-cli
+output
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -45,3 +47,14 @@ next-env.d.ts
 
 # playwright mcp
 /.playwright-mcp
+
+# artefactos locales
+/.playwright-cli/
+/output/
+
+# Copias y datos locales de PostgreSQL (las migraciones de db/ sí se versionan)
+/backups/
+/pgdata/
+*.dump
+*.backup
+*.sql.gz

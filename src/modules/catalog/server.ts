@@ -8,12 +8,55 @@ import { getImagesByIds } from "@/modules/media/server";
 
 import { publishProduct as publishProductUseCase } from "./application/product-editing";
 import type { CatalogDeps } from "./application/ports";
-import type { AdminProduct, ColorCard, ProductStatus, PublicationIssue, QuotableVariant } from "./contracts";
+import type {
+  AdminProduct,
+  CartVariantDisplay,
+  ColorCard,
+  ProductStatus,
+  PublicationIssue,
+  PublicCategory,
+  PublicProductColor,
+  QuotableVariant,
+} from "./contracts";
 import { publicationIssues } from "./domain/rules";
 import * as queries from "./infrastructure/catalog-queries";
 import { createCatalogStore } from "./infrastructure/catalog-store";
+import { guideStore, listGuides, readGuide } from "./infrastructure/size-guide-store";
+import { saveSizeGuide as saveGuide, type SaveGuideInput } from "./application/size-guides";
+import { saveCategory as saveCategoryUseCase, type SaveCategoryInput } from "./application/categories";
+import { categoryStore, listCategories, readCategory } from "./infrastructure/category-store";
 
-export const CATALOG_CACHE_TAG = "catalog";
+export function getCategoryDeps(db: AnyDatabase = getDb()) {
+  return { store: categoryStore(db), authorize: (actor: { membershipId: string; role: "owner" | "operator" }) => actorCan(actor as AdminActor, "catalog.manage") };
+}
+export function listAdminCategories(actor: AdminActor, db: AnyDatabase = getDb()) {
+  if (!actorCan(actor, "catalog.manage")) throw new Error("FORBIDDEN");
+  return listCategories(db);
+}
+export function getAdminCategory(actor: AdminActor, id: string) {
+  if (!actorCan(actor, "catalog.manage")) throw new Error("FORBIDDEN");
+  return readCategory(getDb(), id);
+}
+export function saveCategory(actor: AdminActor, input: SaveCategoryInput) {
+  return saveCategoryUseCase(getCategoryDeps(), actor, input);
+}
+
+export function getSizeGuideDeps(db: AnyDatabase = getDb()) {
+  return { store: guideStore(db), authorize: (actor: { membershipId: string; role: "owner" | "operator" }) => actorCan(actor as AdminActor, "catalog.manage") };
+}
+export function listAdminSizeGuides(actor: AdminActor) {
+  if (!actorCan(actor, "catalog.manage")) throw new Error("FORBIDDEN");
+  return listGuides(getDb());
+}
+export function getAdminSizeGuide(actor: AdminActor, id: string) {
+  if (!actorCan(actor, "catalog.manage")) throw new Error("FORBIDDEN");
+  return readGuide(getDb(), id);
+}
+export function saveSizeGuide(actor: AdminActor, input: SaveGuideInput) {
+  return saveGuide(getSizeGuideDeps(), actor, input);
+}
+
+export { CATALOG_CACHE_TAG } from "@/shared/cache/tags";
 
 /** Dependencias de los casos de uso; la autorización la aporta identity. */
 export function getCatalogDeps(): CatalogDeps {
@@ -25,6 +68,7 @@ export function getCatalogDeps(): CatalogDeps {
 }
 
 export const listCategoryOptions = () => queries.listCategoryOptions(getDb());
+export const listStorefrontProductOptions = () => queries.listStorefrontProductOptions(getDb());
 export const listSizeGuideOptions = () => queries.listSizeGuideOptions(getDb());
 
 export function listAdminProducts(filter: queries.AdminListFilter) {
@@ -77,8 +121,21 @@ export function publishProduct(actor: AdminActor, input: { productId: string; ex
 }
 
 /** Tarjetas públicas por color (sin disponibilidad: la añade la composición desde inventory). */
-export function listPublishedColorCards(filter: { categorySlug?: string; limit: number }): Promise<ColorCard[]> {
+export function listPublishedColorCards(filter: { categorySlug?: string; productSlugs?: readonly string[]; limit: number; offset?: number }): Promise<ColorCard[]> {
   return queries.listPublishedColorCards(getDb(), filter);
+}
+
+export const countPublishedColorCards = (categorySlug?: string) => queries.countPublishedColorCards(getDb(), categorySlug);
+export const listPublicCategories = (): Promise<PublicCategory[]> => queries.listPublicCategories(getDb());
+export const getPublicCategory = (slug: string): Promise<PublicCategory | null> => queries.getPublicCategory(getDb(), slug);
+export const getPublicProductColor = (slug: string, colorSlug: string): Promise<PublicProductColor | null> => queries.getPublicProductColor(getDb(), slug, colorSlug);
+export const getPrimaryColorHref = (slug: string) => queries.getPrimaryColorHref(getDb(), slug);
+export const listPublishedColorPaths = (limit = 100) => queries.listPublishedColorPaths(getDb(), limit);
+export const listPublicSitemapEntries = () => queries.listPublicSitemapEntries(getDb());
+
+/** Enlace y portada de variantes para mostrar el carrito (la cotización la hace sales). */
+export function getCartVariantDisplay(variantIds: readonly string[], db: AnyDatabase = getDb()): Promise<CartVariantDisplay[]> {
+  return queries.getCartVariantDisplay(db, variantIds);
 }
 
 /** Para ventas: datos y precio vigente de variantes (cotización en servidor). */
@@ -86,6 +143,6 @@ export function getQuotableVariants(variantIds: readonly string[], db: AnyDataba
   return queries.getQuotableVariants(db, variantIds);
 }
 
-export function searchQuotableVariants(term: string, limit = 20): Promise<QuotableVariant[]> {
+export function searchQuotableVariants(term: string, limit = 20): Promise<(QuotableVariant & { imageMediaId: string | null })[]> {
   return queries.searchQuotableVariants(getDb(), term, limit);
 }

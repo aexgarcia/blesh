@@ -1,0 +1,1 @@
+ALTER TABLE "app"."order_revisions" ADD COLUMN "promotion_label" text;

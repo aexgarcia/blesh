@@ -43,6 +43,34 @@ export function parseAuthEnv(source: Record<string, string | undefined>): AuthEn
   return result.success ? result.data : null;
 }
 
+/**
+ * Tienda pública. `WHATSAPP_NUMBER`: número que recibe las solicitudes, solo dígitos con
+ * código de país (p. ej. 51 + 9 dígitos), sin `+`. No hay valor por defecto: sin él, las
+ * solicitudes quedan deshabilitadas. Fuera de producción se trata siempre como número de prueba.
+ */
+export const storefrontEnvSchema = z.object({
+  WHATSAPP_NUMBER: z
+    .string()
+    .trim()
+    .regex(/^\d{8,15}$/, "Solo dígitos con código de país, sin + ni espacios (p. ej. 51987654321)")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+});
+export type StorefrontEnv = z.infer<typeof storefrontEnvSchema>;
+
+/** Error si el número tiene formato inválido: mejor fallar que abrir un chat equivocado. */
+export function parseStorefrontEnv(source: Record<string, string | undefined>): StorefrontEnv {
+  const result = storefrontEnvSchema.safeParse(source);
+  if (!result.success) throw new Error(describeConfigError(result.error));
+  return result.data;
+}
+
+/** URL base pública del almacenamiento de imágenes (solo la URL; sin claves). */
+export function parseStorageBaseUrl(source: Record<string, string | undefined>): string | null {
+  const result = z.url().safeParse(source.SUPABASE_URL);
+  return result.success ? result.data.replace(/\/$/, "") : null;
+}
+
 export const migrationEnvSchema = z.object({
   MIGRATION_DATABASE_URL: postgresUrl,
 });

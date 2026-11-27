@@ -15,7 +15,7 @@ export function SidebarShell({ brand, nav, footer, children, className }: {
     <div className={cn("flex min-h-svh flex-1 flex-col bg-bg md:flex-row", className)}>
       <aside className="sticky top-0 z-30 flex flex-col bg-darker text-white md:h-svh md:w-64 md:shrink-0">
         <div className="flex h-16 items-center px-6 md:h-20">{brand}</div>
-        <nav aria-label="Administración" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:overflow-visible md:pb-0">
+        <nav aria-label="Administración" className="flex gap-1 overflow-x-auto px-3 pb-3 md:min-h-0 md:flex-1 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:pb-3">
           {nav}
         </nav>
         {footer ? <div className="hidden border-t border-white/10 p-4 md:block">{footer}</div> : null}

@@ -121,6 +121,8 @@ export async function updatePasswordAction(_prev: FormState, formData: FormData)
     const weak = error.code === "weak_password" || error.code === "same_password";
     return errorState(weak ? "Elige otra contraseña más segura (distinta a la anterior)." : "No se pudo guardar la contraseña. Solicita un nuevo enlace.");
   }
+  // Nueva contraseña: se cierran las demás sesiones (p. ej. la de quien conocía la anterior).
+  await supabase.auth.signOut({ scope: "others" });
   redirect(state.kind === "ok" ? HOME : "/admin/mfa");
 }
 

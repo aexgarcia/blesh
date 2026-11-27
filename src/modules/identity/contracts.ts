@@ -14,6 +14,7 @@ export type AdminActor = {
 
 /** Capacidades de la matriz owner/operator (docs/administracion.md). */
 export type Capability =
+  | "content.manage"
   | "catalog.manage"
   | "inventory.adjust"
   | "orders.operate"

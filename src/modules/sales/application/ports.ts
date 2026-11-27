@@ -23,7 +23,8 @@ export type OrderRow = {
   refundStatus: RefundStatus;
   customerId: string | null;
   customerName: string;
-  customerPhone: string;
+  /** null: solicitud web; el celular se obtiene en la conversación de WhatsApp. */
+  customerPhone: string | null;
   deliveryPreference: DeliveryMode;
   currentRevision: number;
   acceptedRevision: number | null;
@@ -66,6 +67,9 @@ export type RevisionInput = {
   lines: OrderLine[];
   subtotalMinor: number;
   discountMinor: number;
+  promotionDiscountMinor: number;
+  promotionCode: string | null;
+  promotionLabel?: string | null;
   shippingMinor: number;
   totalMinor: number;
   deliveryMode: DeliveryMode;
@@ -105,7 +109,7 @@ export interface SalesTx {
     reference: string;
     source: OrderSource;
     customerName: string;
-    customerPhone: string;
+    customerPhone: string | null;
     deliveryPreference: DeliveryMode;
     totalMinor: number;
     creationKey: string;
@@ -165,12 +169,14 @@ export interface SalesStore {
 }
 
 export type QuotedVariant = {
+  productSlug?: string;
   variantId: string;
   sku: string;
   productTitle: string;
   colorLabel: string;
   sizeCode: string;
   priceMinor: number;
+  categorySlug: string | null;
   sellable: boolean;
 };
 
@@ -187,6 +193,7 @@ export type SalesCapability =
 export type SalesActor = { membershipId: string; role: "owner" | "operator" };
 
 export type SalesDeps = {
+  packPolicies?: () => Promise<readonly import("../domain/promotions").PackPolicy[]>;
   store: SalesStore;
   /** Precios vigentes del catálogo (autoridad de precio). */
   quote: (variantIds: readonly string[]) => Promise<QuotedVariant[]>;
@@ -195,7 +202,7 @@ export type SalesDeps = {
   randomBytes: () => Uint8Array;
   clock: { now: () => Date };
   /** Validación de contacto (la aporta customers: misma normalización de teléfono). */
-  normalizeContact: (input: { name: string; phone: string }) => { ok: true; name: string; phone: string } | { ok: false; field: "name" | "phone"; message: string };
+  normalizeContact: (input: { name: string; phone: string | null }) => { ok: true; name: string; phone: string | null } | { ok: false; field: "name" | "phone"; message: string };
 };
 
 export class SalesFailure extends Error {

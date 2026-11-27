@@ -50,6 +50,76 @@
       "when": 1795468922658,
       "tag": "0006_sales_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795470882819,
+      "tag": "0007_storefront_rate_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795483158896,
+      "tag": "0008_pack_promotions",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795530235058,
+      "tag": "0009_storefront_sections_and_pack_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795530632004,
+      "tag": "0010_order_promotion_label_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795536659493,
+      "tag": "0011_editable_size_guides",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795536774628,
+      "tag": "0012_size_guide_creation_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795536988487,
+      "tag": "0013_size_guide_write_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795540258200,
+      "tag": "0014_categories_and_home_visuals",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795542746570,
+      "tag": "0015_general_store_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795617843278,
+      "tag": "0016_order_phone_optional",
+      "breakpoints": true
     }
   ]
 }

@@ -21,7 +21,7 @@ export async function getOrderPage(actor: AdminActor, id: string): Promise<Order
   const { actorIds, revisionAuthors, eventActors, ...order } = detail;
   const [names, matches, linked] = await Promise.all([
     getAdminDisplayNames(actorIds),
-    findCustomersByPhone(actor, order.customerPhone),
+    order.customerPhone ? findCustomersByPhone(actor, order.customerPhone) : Promise.resolve([]),
     order.customerId ? getCustomer(actor, order.customerId) : Promise.resolve(null),
   ]);
   const name = (memberId: string | null) => (memberId ? (names.get(memberId) ?? "Usuario") : null);

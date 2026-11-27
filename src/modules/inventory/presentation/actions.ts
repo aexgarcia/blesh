@@ -4,20 +4,19 @@ import { refresh, updateTag } from "next/cache";
 import { z } from "zod";
 
 import { requireAdminActor } from "@/modules/identity/server";
+import { CATALOG_CACHE_TAG } from "@/shared/cache/tags";
 import { errorState, fieldErrorsFrom, type FormState } from "@/shared/forms/form-state";
 
 import { adjustStock, registerInitialStock, type InventoryResult } from "../application/stock-adjustments";
 import { ADJUSTMENT_REASONS } from "../contracts";
 import { getInventoryDeps } from "../server";
 
-/** Disponibilidad pública orientativa (las tarjetas la muestran): se invalida tras cambiar stock. */
-const PUBLIC_CATALOG_TAG = "catalog";
 
 const operationKey = z.uuid({ message: "Solicitud inválida." });
 
 function finish(result: InventoryResult<unknown>, success: string): FormState {
   if (!result.ok) return errorState(result.message, result.field ? { [result.field]: result.message } : undefined);
-  updateTag(PUBLIC_CATALOG_TAG);
+  updateTag(CATALOG_CACHE_TAG);
   refresh();
   return { status: "success", message: success };
 }

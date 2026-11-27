@@ -1,7 +1,7 @@
 /**
- * Flujo de autenticación con Supabase Auth local real (sin envío de correos reales:
- * las invitaciones llegan al buzón de pruebas Mailpit).
- * Requiere `npm run auth:up` y las variables SUPABASE_* / MAILPIT_URL en .env.local.
+ * Flujo de autenticación con Supabase Auth local real. Las invitaciones de estas pruebas NO
+ * envían correo (el SMTP local es Gmail real): se genera el enlace con la API de administración.
+ * Requiere `npm run auth:up` y las variables SUPABASE_* en .env.local.
  */
 import { randomUUID } from "node:crypto";
 
@@ -25,7 +25,18 @@ if (!env) throw new Error("Faltan SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY / SUPA
 
 const { sql, db } = openTestDb();
 const admin = createSupabaseAdminClient(env);
-const deps: IdentityDeps = { store: createMembershipStore(db), auth: createSupabaseAuthAdminGateway(admin), clock: { now: () => new Date() } };
+/** token_hash del enlace de invitación por correo (equivale al enlace que recibiría la persona). */
+const inviteTokens = new Map<string, string>();
+const auth: IdentityDeps["auth"] = {
+  ...createSupabaseAuthAdminGateway(admin),
+  async inviteUser(email) {
+    const { data, error } = await admin.auth.admin.generateLink({ type: "invite", email });
+    if (error || !data.user) throw error ?? new Error("invite");
+    inviteTokens.set(email, data.properties.hashed_token);
+    return { subject: data.user.id };
+  },
+};
+const deps: IdentityDeps = { store: createMembershipStore(db), auth, clock: { now: () => new Date() } };
 const createdUsers: string[] = [];
 const PASSWORD = "Prueba-segura-12345";
 
@@ -160,30 +171,20 @@ describe("Supabase Auth local", () => {
     expect(error).not.toBeNull();
   });
 
-  it("invitación: crea usuario, envía correo local con enlace de un solo uso hacia /admin/auth/confirm", async () => {
-    const mailpit = process.env.MAILPIT_URL;
-    if (!mailpit) throw new Error("Falta MAILPIT_URL");
+  it("invitación: crea usuario y un enlace de un solo uso", async () => {
     const email = `invitado-${randomUUID()}@blesh.test`;
     const invited = await access.inviteAdmin(deps, owner, { email, displayName: "Invitado", role: "operator" });
     expect(invited.ok).toBe(true);
     if (!invited.ok) return;
     createdUsers.push(invited.value.authSubject);
-
-    let body = "";
-    for (let attempt = 0; attempt < 20 && !body; attempt++) {
-      const search = await fetch(`${mailpit}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`).then((r) => r.json());
-      const id = search.messages?.[0]?.ID;
-      if (id) body = (await fetch(`${mailpit}/api/v1/message/${id}`).then((r) => r.json())).HTML ?? "";
-      else await new Promise((r) => setTimeout(r, 250));
-    }
-    const match = /\/admin\/auth\/confirm\?token_hash=([^&"]+)&(?:amp;)?type=invite/.exec(body);
-    expect(match).not.toBeNull();
+    const tokenHash = inviteTokens.get(email);
+    expect(tokenHash).toBeTruthy();
 
     const client = browserClient();
-    const verified = await client.auth.verifyOtp({ type: "invite", token_hash: match![1] });
+    const verified = await client.auth.verifyOtp({ type: "invite", token_hash: tokenHash! });
     expect(verified.error).toBeNull();
     // Reutilizar el mismo enlace falla (un solo uso).
-    const reused = await browserClient().auth.verifyOtp({ type: "invite", token_hash: match![1] });
+    const reused = await browserClient().auth.verifyOtp({ type: "invite", token_hash: tokenHash! });
     expect(reused.error).not.toBeNull();
 
     // Antes de completar MFA, un invitado no accede a la administración.

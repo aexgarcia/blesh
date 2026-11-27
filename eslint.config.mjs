@@ -95,6 +95,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Referencia visual estática, fuera del runtime.
     "prototipo/**",
+    // Capturas, perfiles y scripts temporales de verificación.
+    "output/**",
+    ".playwright-cli/**",
   ]),
 ]);
 

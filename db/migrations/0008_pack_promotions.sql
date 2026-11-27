@@ -1,0 +1,5 @@
+ALTER TABLE "app"."order_revisions" DROP CONSTRAINT "order_revisions_totals_check";--> statement-breakpoint
+ALTER TABLE "app"."order_revisions" ADD COLUMN "promotion_discount_minor" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "app"."order_revisions" ADD COLUMN "promotion_code" text;--> statement-breakpoint
+ALTER TABLE "app"."order_revisions" ADD CONSTRAINT "order_revisions_promotion_check" CHECK (("app"."order_revisions"."promotion_discount_minor" = 0) = ("app"."order_revisions"."promotion_code" is null));--> statement-breakpoint
+ALTER TABLE "app"."order_revisions" ADD CONSTRAINT "order_revisions_totals_check" CHECK ("app"."order_revisions"."discount_minor" >= 0 and "app"."order_revisions"."promotion_discount_minor" >= 0 and "app"."order_revisions"."discount_minor" + "app"."order_revisions"."promotion_discount_minor" <= "app"."order_revisions"."subtotal_minor" and "app"."order_revisions"."shipping_minor" >= 0 and "app"."order_revisions"."total_minor" = "app"."order_revisions"."subtotal_minor" - "app"."order_revisions"."promotion_discount_minor" - "app"."order_revisions"."discount_minor" + "app"."order_revisions"."shipping_minor");

@@ -207,6 +207,6 @@ describe("inventario", () => {
     unwrap(await registerInitialStock(inventory, owner, { variantId: variants[0].id, quantity: 2, operationKey: randomUUID(), note: null }));
     await expect(sql`update app.stock_movements set delta_on_hand = 100`).rejects.toThrow(/permission denied/);
     await expect(sql`delete from app.stock_movements`).rejects.toThrow(/permission denied/);
-    await expect(sql`insert into app.categories (slug, name) values ('hack', 'Hack')`).rejects.toThrow(/permission denied/);
+    await expect(sql`delete from app.categories`).rejects.toThrow(/permission denied/);
   });
 });

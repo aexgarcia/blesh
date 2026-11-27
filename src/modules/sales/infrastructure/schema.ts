@@ -1,9 +1,20 @@
 import { sql } from "drizzle-orm";
-import { check, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, foreignKey, index, integer, jsonb, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { appSchema } from "../../../infrastructure/database/schema/app-schema";
 import { productVariants } from "../../catalog/infrastructure/schema";
 import { customers } from "../../customers/infrastructure/schema";
+
+export const packConfig = appSchema.table("pack_config", {
+  code: text().primaryKey(),
+  enabled: boolean().notNull(),
+  policy: jsonb().$type<import("../domain/promotions").PackPolicy>().notNull(),
+  version: integer().notNull(),
+  operationKey: uuid().notNull(),
+  fingerprint: text().notNull(),
+  updatedBy: uuid().notNull(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, (t) => [check("pack_config_code_check", sql`${t.code} = 'pack-boxy-essential'`), check("pack_config_version_check", sql`${t.version} > 0`)]);
 
 /**
  * Pedido: snapshot de contacto de la solicitud, revisión vigente/aceptada y ejes de estado
@@ -22,7 +33,7 @@ export const orders = appSchema.table(
     refundStatus: text().notNull().default("none"),
     customerId: uuid().references(() => customers.id, { onDelete: "restrict" }),
     customerName: text().notNull(),
-    customerPhone: text().notNull(),
+    customerPhone: text(),
     deliveryPreference: text().notNull().default("undecided"),
     currentRevision: integer().notNull().default(1),
     acceptedRevision: integer(),
@@ -79,6 +90,11 @@ export const orderRevisions = appSchema.table(
     number: integer().notNull(),
     subtotalMinor: integer().notNull(),
     discountMinor: integer().notNull().default(0),
+    /** Descuento automático por packs (política versionada), separado del excepcional. */
+    promotionDiscountMinor: integer().notNull().default(0),
+    /** `codigo@version` de las políticas aplicadas; null sin promoción. */
+    promotionCode: text(),
+    promotionLabel: text(),
     shippingMinor: integer().notNull().default(0),
     totalMinor: integer().notNull(),
     deliveryMode: text().notNull(),
@@ -93,7 +109,11 @@ export const orderRevisions = appSchema.table(
   },
   (t) => [
     primaryKey({ columns: [t.orderId, t.number] }),
-    check("order_revisions_totals_check", sql`${t.discountMinor} >= 0 and ${t.discountMinor} <= ${t.subtotalMinor} and ${t.shippingMinor} >= 0 and ${t.totalMinor} = ${t.subtotalMinor} - ${t.discountMinor} + ${t.shippingMinor}`),
+    check(
+      "order_revisions_totals_check",
+      sql`${t.discountMinor} >= 0 and ${t.promotionDiscountMinor} >= 0 and ${t.discountMinor} + ${t.promotionDiscountMinor} <= ${t.subtotalMinor} and ${t.shippingMinor} >= 0 and ${t.totalMinor} = ${t.subtotalMinor} - ${t.promotionDiscountMinor} - ${t.discountMinor} + ${t.shippingMinor}`,
+    ),
+    check("order_revisions_promotion_check", sql`(${t.promotionDiscountMinor} = 0) = (${t.promotionCode} is null)`),
     check("order_revisions_delivery_check", sql`${t.deliveryMode} in ('pickup', 'shipping', 'undecided')`),
     check("order_revisions_payment_mode_check", sql`${t.paymentMode} is null or ${t.paymentMode} in ('prepaid', 'deposit_on_delivery', 'cash_on_delivery')`),
     check("order_revisions_responsible_check", sql`${t.collectionResponsible} in ('company', 'carrier')`),

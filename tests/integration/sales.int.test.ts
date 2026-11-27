@@ -43,7 +43,7 @@ beforeEach(async () => {
     "products",
     "audit_events",
   ]);
-  const [category] = await sql<{ id: string }[]>`select id from app.categories where slug = 'boxy-essential'`;
+  const [category] = await sql<{ id: string }[]>`select id from app.categories where slug = 'basicos'`; // sin pack: importes fijos
   const [product] = await sql<{ id: string }[]>`
     insert into app.products (slug, title, category_id, status, published_at, first_published_at, created_by, updated_by)
     values ('boxy-essential', 'Boxy Essential', ${category.id}, 'published', now(), now(), ${owner.membershipId}, ${owner.membershipId}) returning id`;

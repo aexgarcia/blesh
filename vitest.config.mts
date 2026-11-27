@@ -20,7 +20,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit",
-          include: ["src/**/*.test.ts", "tests/architecture/**/*.test.ts", "tests/integration/migrations.test.ts"],
+          include: ["tests/unit/**/*.test.{ts,tsx}", "tests/architecture/**/*.test.ts", "tests/integration/migrations.test.ts"],
         },
       },
       {

@@ -60,6 +60,23 @@ body {
     @apply font-black uppercase leading-none tracking-[-0.035em];
     font-size: clamp(26px, 3.2vw, 40px);
   }
+  /* Etiquetas de tarjeta/ficha (prototipo `.tag`). */
+  .tag {
+    @apply inline-flex h-[22px] items-center rounded-full bg-ink px-[9px] text-[9px] font-extrabold uppercase tracking-[0.04em] text-white;
+  }
+  .tag-light {
+    @apply bg-white text-ink;
+  }
+  .tag-sale {
+    @apply bg-sale text-white;
+  }
+  /* «Ver todo →» (prototipo `.link-arrow`). */
+  .link-arrow {
+    @apply whitespace-nowrap border-b-[1.5px] border-current pb-[3px] text-[11px] font-extrabold uppercase tracking-[0.04em];
+  }
+  .section-head {
+    @apply mb-[22px] flex items-end justify-between gap-4 border-b border-line pb-[18px];
+  }
   .nav-pill {
     @apply rounded-full px-3 py-2 text-[11px] font-extrabold uppercase tracking-[0.03em] transition-colors hover:bg-black/10;
   }
@@ -76,5 +93,55 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Marquesina de anuncios (prototipo `.adbar`). */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee 32s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}
+
+/* Tailwind 4 deja el cursor por defecto en botones: todo elemento accionable muestra la mano. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="radio"],
+  [role="menuitem"],
+  [role="option"],
+  a[href],
+  summary,
+  select:not(:disabled),
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="range"]:not(:disabled),
+  input[type="file"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
   }
 }

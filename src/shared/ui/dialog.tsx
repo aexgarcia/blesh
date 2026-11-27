@@ -43,3 +43,43 @@ export function DialogContent({ title, description, children, className }: {
     </DialogPrimitive.Portal>
   );
 }
+
+/**
+ * Panel lateral modal (carrito, menú móvil): mismo foco atrapado y Escape que el diálogo.
+ * `side="right"` en escritorio flota con margen, como el prototipo; en móvil ocupa casi todo.
+ */
+export function SheetContent({ title, description, children, className, side = "right", headerExtra }: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+  side?: "right" | "left";
+  headerExtra?: React.ReactNode;
+}) {
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]" />
+      <DialogPrimitive.Content
+        className={cn(
+          "fixed bottom-2.5 top-2.5 z-50 flex w-[min(440px,calc(100%-20px))] flex-col overflow-hidden rounded-[20px] bg-bg shadow-[0_20px_60px_rgba(0,0,0,0.25)] focus:outline-none",
+          side === "right" ? "right-2.5" : "left-2.5",
+          className,
+        )}
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
+          <div className="min-w-0">
+            <DialogPrimitive.Title className="text-[15px] font-black uppercase tracking-[-0.01em]">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Description className={description ? "mt-0.5 text-[12px] text-muted" : "sr-only"}>{description ?? title}</DialogPrimitive.Description>
+          </div>
+          <div className="flex items-center gap-1">
+            {headerExtra}
+            <DialogPrimitive.Close className="grid size-9 place-items-center rounded-full hover:bg-black/5" aria-label="Cerrar">
+              <X className="size-4" aria-hidden />
+            </DialogPrimitive.Close>
+          </div>
+        </div>
+        {children}
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
+  );
+}

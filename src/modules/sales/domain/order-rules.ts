@@ -35,18 +35,20 @@ export function normalizeRequestedLines(lines: readonly RequestedLine[]): Reques
 
 export type PricedLine = { unitPriceMinor: number; quantity: number };
 
-export function computeTotals(lines: readonly PricedLine[], discountMinor: number, shippingMinor: number) {
+/** `promotionMinor`: descuento automático por packs (se resta antes del excepcional). */
+export function computeTotals(lines: readonly PricedLine[], discountMinor: number, shippingMinor: number, promotionMinor = 0) {
   const subtotal = lines.reduce((sum, l) => {
     if (!Number.isSafeInteger(l.unitPriceMinor) || l.unitPriceMinor <= 0 || l.unitPriceMinor > MAX_UNIT_PRICE_MINOR) throw new RangeError("Precio inválido");
     return sum + l.unitPriceMinor * l.quantity;
   }, 0);
-  if (!Number.isSafeInteger(discountMinor) || discountMinor < 0 || discountMinor > subtotal) {
+  if (!Number.isSafeInteger(promotionMinor) || promotionMinor < 0 || promotionMinor > subtotal) throw new RangeError("Promoción inválida");
+  if (!Number.isSafeInteger(discountMinor) || discountMinor < 0 || discountMinor > subtotal - promotionMinor) {
     return { ok: false as const, problem: { code: "VALIDATION_ERROR", message: "El descuento no puede superar el subtotal.", field: "discount" } };
   }
   if (!Number.isSafeInteger(shippingMinor) || shippingMinor < 0 || shippingMinor > MAX_UNIT_PRICE_MINOR) {
     return { ok: false as const, problem: { code: "VALIDATION_ERROR", message: "Costo de envío inválido.", field: "shipping" } };
   }
-  const total = subtotal - discountMinor + shippingMinor;
+  const total = subtotal - promotionMinor - discountMinor + shippingMinor;
   if (total > MAX_ORDER_TOTAL_MINOR) return { ok: false as const, problem: { code: "VALIDATION_ERROR", message: "El total supera el máximo permitido.", field: "lines" } };
   return { ok: true as const, subtotalMinor: subtotal, totalMinor: total };
 }

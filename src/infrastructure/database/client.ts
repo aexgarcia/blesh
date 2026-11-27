@@ -12,9 +12,9 @@ export type Database = PostgresJsDatabase<typeof schema>;
 /** Transacción de Drizzle; uso interno de fachadas de servidor. */
 export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
-type DatabaseHandle = { db: Database; sql: postgres.Sql };
+type DatabaseHandle = { sql: postgres.Sql };
 
-// En desarrollo, el recargado de módulos crearía un pool por edición: reutilizarlo.
+// Solo el pool sobrevive al recargado de módulos, no la caché de columnas de Drizzle.
 const globalForDb = globalThis as unknown as { __bleshDb?: DatabaseHandle };
 
 function createHandle(): DatabaseHandle {
@@ -27,11 +27,13 @@ function createHandle(): DatabaseHandle {
     connect_timeout: 10,
     connection: { application_name: "blesh-web" },
   });
-  return { sql, db: createDrizzle(sql) };
+  return { sql };
 }
 
 /** Cliente runtime (rol con permisos mínimos). Se crea de forma perezosa. */
 export function getDb(): Database {
   globalForDb.__bleshDb ??= createHandle();
-  return globalForDb.__bleshDb.db;
+  // Un esquema actualizado puede añadir columnas a una tabla ya cacheada por Drizzle.
+  // Una instancia ligera nueva evita reutilizar ese mapa; las conexiones siguen siendo las mismas.
+  return createDrizzle(globalForDb.__bleshDb.sql);
 }

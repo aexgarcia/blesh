@@ -21,7 +21,13 @@ type Socials = { instagram: ContentLink | null; tiktok: ContentLink | null; what
  * Mide su altura (--chrome-h) para que las páginas sin hero no queden debajo.
  */
 export function SiteHeader({ announcements, nav, socials, banner }: { announcements: string[]; nav: ContentLink[]; socials: Socials; banner?: React.ReactNode }) {
-  const pathname = usePathname();
+  const currentPath = usePathname();
+  // El HTML prerenderizado en Vercel puede no conocer la ruta real: lo que dependa de ella se
+  // aplica tras montar para que la hidratación coincida (si no, React reintenta sin fin).
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Activación intencional tras la hidratación.
+  useEffect(() => setMounted(true), []);
+  const pathname = mounted ? currentPath : null;
   const hasHero = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -103,7 +109,8 @@ export function SiteHeader({ announcements, nav, socials, banner }: { announceme
           </div>
         </header>
       </div>
-      {hasHero ? null : <div aria-hidden style={{ height: "var(--chrome-h, 96px)" }} />}
+      {/* Siempre presente (estructura estable); se oculta por CSS si la página tiene hero. */}
+      <div aria-hidden style={{ height: "var(--chrome-h, 96px)" }} className="[body:has([data-page-hero])_&]:hidden" />
 
       <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DialogPrimitive.Portal>

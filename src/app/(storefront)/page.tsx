@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense } from "react";
 
 import { getHomeData } from "@/composition/storefront";
 import { ProductCard } from "@/modules/catalog/presentation/storefront/product-card";
@@ -29,27 +28,14 @@ export async function generateMetadata() {
   });
 }
 
-/**
- * Frontera propia para la portada: sin ella, el contenido (grande y en streaming) se hidrata
- * directamente bajo la Activity de la ruta y React reintenta la hidratación sin fin
- * (error 418 silencioso, la memoria crece hasta congelar la pestaña).
- */
-export default function HomePage() {
-  return (
-    <Suspense fallback={null}>
-      <HomeContent />
-    </Suspense>
-  );
-}
-
 /** Portada: estructura y secciones del prototipo (prototipo/index.html). */
-async function HomeContent() {
+export default async function HomePage() {
   const content = await getStorefrontContent();
   const home = await getHomeData();
   const { hero } = content;
 
   return (
-    <main className={!hero.enabled ? "pt-[var(--chrome-h,96px)]" : undefined}>
+    <main>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -64,7 +50,7 @@ async function HomeContent() {
         }}
       />
       {/* HERO */}
-      {hero.enabled ? <section className="relative h-svh max-h-[1000px] min-h-[560px] overflow-hidden bg-dark text-white">
+      {hero.enabled ? <section data-page-hero className="relative h-svh max-h-[1000px] min-h-[560px] overflow-hidden bg-dark text-white">
         {hero.image ? (
           <Image
             src={hero.image.url}

@@ -15,6 +15,9 @@ const isLocalDevelopment = (process.env.APP_ENV ?? "development") === "developme
 const nextConfig: NextConfig = {
   experimental: {
     agentFeedback: true,
+    // Pocos workers de build = pocas conexiones simultáneas al pooler de Supabase (máx. 15).
+    cpus: 4,
+    staticGenerationRetryCount: 1,
     serverActions: {
       // Imágenes de producto: máximo 5 MB + margen del multipart (ver módulo media).
       bodySizeLimit: "6mb",

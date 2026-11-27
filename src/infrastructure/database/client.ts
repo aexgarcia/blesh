@@ -19,17 +19,14 @@ const globalForDb = globalThis as unknown as { __bleshDb?: DatabaseHandle };
 
 function createHandle(): DatabaseHandle {
   const env = getServerEnv();
-  const options = {
+  const sql = postgres(env.DATABASE_URL, {
     max: env.DATABASE_POOL_MAX,
     // El pooler de Supabase en modo transacción no admite sentencias preparadas.
     prepare: env.DATABASE_PREPARE,
-    // Supavisor transaccional tampoco admite query pipelining.
-    max_pipeline: env.DATABASE_PREPARE ? 100 : 1,
     idle_timeout: 20,
     connect_timeout: 10,
     connection: { application_name: "blesh-web" },
-  };
-  const sql = postgres(env.DATABASE_URL, options);
+  });
   return { sql };
 }
 

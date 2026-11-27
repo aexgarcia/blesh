@@ -20,7 +20,9 @@ const globalForDb = globalThis as unknown as { __bleshDb?: DatabaseHandle };
 function createHandle(): DatabaseHandle {
   const env = getServerEnv();
   const sql = postgres(env.DATABASE_URL, {
-    max: env.DATABASE_POOL_MAX,
+    // En el build cada worker abre su propio pool: una conexión por worker evita agotar
+    // el límite del pooler de Supabase (EMAXCONNSESSION) al prerenderizar en paralelo.
+    max: process.env.NEXT_PHASE === "phase-production-build" ? 1 : env.DATABASE_POOL_MAX,
     // El pooler de Supabase en modo transacción no admite sentencias preparadas.
     prepare: env.DATABASE_PREPARE,
     idle_timeout: 20,

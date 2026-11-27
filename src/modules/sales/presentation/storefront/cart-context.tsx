@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, use, useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { createContext, use, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import type { OrderingStatus } from "../../contracts";
 import { acceptPrices, addToCart, cartUnits, removeLine, setQuantity, type AddResult, type CartLine, type CartState } from "../../domain/cart";
@@ -28,11 +28,13 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-const subscribeHydration = () => () => undefined;
-
 export function CartProvider({ ordering, children }: { ordering: OrderingStatus; children: React.ReactNode }) {
   const cart = useSyncExternalStore(cartStore.subscribe, cartStore.get, cartStore.getServerSnapshot);
-  const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false);
+  const [hydrated, setHydrated] = useState(false);
+  // Activar después del commit evita actualizar el proveedor mientras las rutas
+  // de Activity todavía se están hidratando (bloqueo reproducido en producción).
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- El cambio tras el montaje es intencional para completar la hidratación.
+  useEffect(() => setHydrated(true), []);
   const [open, setOpen] = useState(false);
 
   const add = useCallback((line: CartLine) => {
